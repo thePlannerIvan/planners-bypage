@@ -1,0 +1,22 @@
+import { createHash } from 'node:crypto';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { assert, jsonOutput, pass, runNode } from '../lib/assert.mjs';
+
+const root = resolve(import.meta.dirname, '../..');
+const temp = mkdtempSync(join(tmpdir(), 'planners-bypage-assets-'));
+mkdirSync(join(temp, 'review/uploads/page-01'), { recursive: true });
+const data = Buffer.from('uploaded-image');
+writeFileSync(join(temp, 'review/uploads/page-01/upload.png'), data);
+const feedback = join(temp, 'review/review-feedback.json');
+writeFileSync(feedback, JSON.stringify({ decisions: [{ page_number: 1, attachments: [{ path: 'uploads/page-01/upload.png', alt: '新图', caption: '用户补图' }] }] }, null, 2));
+const manifest = join(temp, 'asset-manifest.json');
+writeFileSync(manifest, JSON.stringify({ contract_version: 'asset-manifest/1.1.0', asset_root: 'assets', assets: [] }, null, 2));
+runNode(join(root, 'scripts/import-review-assets.mjs'), ['--feedback', feedback, '--manifest', manifest, '--source-id', 'src-user']);
+const updated = JSON.parse(readFileSync(manifest, 'utf8'));
+assert(updated.assets.length === 1 && updated.assets[0].status === 'selected', '审阅上传必须正式进入 Asset Manifest');
+assert(updated.assets[0].source_sha256 === createHash('sha256').update(data).digest('hex'), '导入资产必须记录真实 Hash');
+assert(updated.assets[0].visual_check.status === 'passed', '用户上传图片必须记录视觉确认状态');
+assert(jsonOutput(runNode(join(root, 'scripts/validate-asset-manifest.mjs'), [manifest])).valid, '导入后的 Manifest 必须通过复算');
+pass('审阅上传回写唯一资产清单');

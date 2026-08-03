@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Planners Bypage Asset Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "asset_root", "assets"],
+  "properties": {
+    "contract_version": {"const": "asset-manifest/1.1.0"},
+    "asset_root": {"type": "string", "minLength": 1},
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["asset_id", "path", "source_sha256", "processed_sha256", "kind", "semantic_class", "source_id", "source_context", "status", "processing_level", "visual_check"],
+        "properties": {
+          "asset_id": {"type": "string", "pattern": "^asset-[a-z0-9][a-z0-9-]{1,63}$"},
+          "path": {"type": "string", "minLength": 1},
+          "preview_path": {"type": ["string", "null"]},
+          "processed_path": {"type": ["string", "null"]},
+          "source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "processed_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+          "kind": {"type": "string", "minLength": 1},
+          "semantic_class": {"enum": ["content_evidence", "narrative", "brand_asset", "reference", "decorative_noise", "uncertain"]},
+          "source_id": {"type": "string", "minLength": 1},
+          "source_context": {"type": "string", "minLength": 1},
+          "status": {"enum": ["unreviewed", "recommended", "selected", "backup", "excluded", "replace"]},
+          "processing_level": {"enum": ["none", "conservative", "enhanced"]},
+          "processing_notes": {"type": "string"},
+          "visual_check": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["status", "method", "notes"],
+            "properties": {
+              "status": {"enum": ["pending", "passed", "failed", "not_required"]},
+              "method": {"type": "string"},
+              "notes": {"type": "string"}
+            }
+          },
+          "width": {"type": ["integer", "null"], "minimum": 1},
+          "height": {"type": ["integer", "null"], "minimum": 1},
+          "issues": {"type": "array", "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    }
+  }
+}

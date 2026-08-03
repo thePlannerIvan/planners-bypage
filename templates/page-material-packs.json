@@ -1,0 +1,23 @@
+{
+  "contract_version": "page-material-packs/1.0.0",
+  "architecture_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "packs": [
+    {
+      "page_number": 1,
+      "page_job": "本页的信息任务",
+      "materials": [
+        {
+          "source_id": "src-example",
+          "locator": "页码、章节、Sheet 或单元格",
+          "excerpt": "与本页真正相关的原文或数据切片",
+          "relationship": "supports",
+          "used_in": "用于哪个内容块",
+          "caveat": ""
+        }
+      ],
+      "asset_ids": [],
+      "content_development": ["每个内容块如何发展"],
+      "gaps": []
+    }
+  ]
+}

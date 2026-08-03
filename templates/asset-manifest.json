@@ -1,0 +1,29 @@
+{
+  "contract_version": "asset-manifest/1.1.0",
+  "asset_root": "assets",
+  "assets": [
+    {
+      "asset_id": "asset-example",
+      "path": "original/example.png",
+      "preview_path": "previews/example.png",
+      "processed_path": null,
+      "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "processed_sha256": null,
+      "kind": "embedded_image",
+      "semantic_class": "uncertain",
+      "source_id": "src-example",
+      "source_context": "原文附近标题、段落、页码或说明",
+      "status": "unreviewed",
+      "processing_level": "none",
+      "processing_notes": "",
+      "visual_check": {
+        "status": "pending",
+        "method": "",
+        "notes": ""
+      },
+      "width": null,
+      "height": null,
+      "issues": []
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+# Internal engineering surfaces: never publish
+_internal/
+
+# Project and customer artifacts
+.bypage-work/
+deliverable/
+output/
+outputs/
+dist/
+build/
+_output/
+.forward-test/
+test-log/
+coverage/
+
+# Secrets and local configuration
+.env
+.env.*
+*.pem
+*.key
+*.token
+
+# Runtime and caches
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+*.log
+*.tmp
+.DS_Store
+
+# Generated client files
+*.pptx
+*.keynote

@@ -1,0 +1,35 @@
+{
+  "contract_version": "page-architecture/1.0.0",
+  "project_id": "pj_0123456789abcdef01234567",
+  "storyline_thesis": "整份演示需要让受众理解、相信或采取什么行动。",
+  "sections": [
+    {
+      "section_id": "sec-example",
+      "title": "示例章节",
+      "audience_shift": "受众在这一章前后发生什么认知变化。",
+      "transition": "如何进入下一章。"
+    }
+  ],
+  "pages": [
+    {
+      "page_number": 1,
+      "section_id": "sec-example",
+      "page_type": "explanation",
+      "page_job": "本页完成什么信息任务。",
+      "title_intent": "页面标题要表达什么。",
+      "main_message": "本页主要信息。",
+      "content_blocks": [
+        {
+          "block_title": "内容块",
+          "role": "该内容块怎样完成页面任务。",
+          "content_requirement": "需要展示的真实内容。",
+          "suggested_form": "paragraph"
+        }
+      ],
+      "source_needs": ["需要回查的材料"],
+      "recommended_assets": [],
+      "other_candidate_assets": [],
+      "transition": "如何进入下一页。"
+    }
+  ]
+}

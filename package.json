@@ -1,0 +1,34 @@
+{
+  "name": "planners-bypage",
+  "version": "1.1.0",
+  "private": true,
+  "description": "把多源文档整理成经过 Storyline 与逐页审阅、可追溯的 PPT By-page 内容包",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "codex-skill",
+    "claude-skill",
+    "presentation",
+    "storyline",
+    "by-page"
+  ],
+  "scripts": {
+    "test:structure": "node evals/structure/run.mjs",
+    "test:review": "node evals/review/run.mjs",
+    "test:assets": "node evals/assets/run.mjs",
+    "test:fact-audit": "node evals/fact-audit/run.mjs",
+    "test:handoff": "node evals/handoff/run.mjs",
+    "test": "node evals/run-all.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thePlannerIvan/planners-bypage.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thePlannerIvan/planners-bypage/issues"
+  },
+  "homepage": "https://github.com/thePlannerIvan/planners-bypage#readme"
+}
