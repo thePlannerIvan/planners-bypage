@@ -40,6 +40,8 @@ description: 把一份或多份 Word、PDF、Markdown、PPT、表格和图片资
 - Storyline Review 每页展示模型推荐的 1–3 张候选图片，其他候选折叠。
 - 图片默认保守处理；特定图片确有需要时才增强，且永不覆盖原图。
 - 采用或备用的处理图必须完成内容视觉检查；只检查尺寸、像素或坐标不能代替确认“裁到的是目标图”。
+- 事实归属必须从 Review Queue 的原文片段反向核对；不得用批量 `confirm` 放行来源事实。
+- Storyline 和 By-page 反馈按 `history/round-NN.json` 追加留档，同时保留 `review-feedback.json` 作为当前最新版。
 - 本 Skill 不决定 `contain|cover`、最终裁剪比例、裁剪锚点、图片槽位或模板关系；这些属于 `$planners-ppt-hell`。
 - 不创建 Method Wiki，不运行品牌策略方向循环，不读取旧 Proposal System 的 `_internal/`。
 

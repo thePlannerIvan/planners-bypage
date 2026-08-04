@@ -7,8 +7,40 @@ import {
   buildAudit, classifyAuditIssues, splitVisiblePages, summarizeFacts,
 } from './lib/final-fact-audit.mjs';
 
+const MODE_GUIDE = {
+  prepare: {
+    required: ['--copy', '--source-index', '--materials', '--source-root', '--audit'],
+    example: 'node audit-final-copy.mjs --mode prepare --copy <bypage-draft.md> --source-index <source-index.json> --materials <page-material-packs.json> --source-root <source-root> --audit <fact-audit.json>',
+    next_action_zh: '生成事实审计、独立归属队列和数字到原文片段的机器映射。',
+  },
+  confirm: {
+    required: ['--copy', '--audit'],
+    example: 'node audit-final-copy.mjs --mode confirm --copy <bypage-draft.md> --audit <fact-audit.json>',
+    next_action_zh: '只自动确认无外部归属风险的方案数字和非事实编号；来源事实仍须独立核对。',
+  },
+  resolve: {
+    required: ['--copy', '--audit', '--decisions'],
+    example: 'node audit-final-copy.mjs --mode resolve --copy <bypage-draft.md> --audit <fact-audit.json> --decisions <fact-audit-decisions.json>',
+    next_action_zh: '仅根据 fact-audit-review-queue.json 和其引用的原文片段完成独立归属判断。',
+  },
+  check: {
+    required: ['--copy', '--audit'],
+    example: 'node audit-final-copy.mjs --mode check --copy <bypage-draft.md> --audit <fact-audit.json>',
+    next_action_zh: '在打开 By-page 终审前复算并检查所有状态。',
+  },
+};
+let activeMode = 'help';
+
 process.on('uncaughtException', error => {
-  process.stdout.write(`${JSON.stringify({ valid: false, error: error.message })}\n`);
+  const guide = MODE_GUIDE[activeMode] || null;
+  process.stdout.write(`${JSON.stringify({
+    valid: false,
+    error: error.message,
+    mode: activeMode,
+    required: guide?.required || [],
+    example: guide?.example || null,
+    next_action_zh: guide?.next_action_zh || '运行 --help 查看完整状态机。',
+  })}\n`);
   process.exit(1);
 });
 
@@ -90,22 +122,47 @@ function compactEvidence(fact) {
   return evidence;
 }
 
-function compactQueue(facts, provisional = true) {
+function numberEvidencePayload(item) {
+  const selected = (item.source_candidates || []).find(candidate =>
+    candidate.source_path === item.source_path) || item.source_candidates?.[0];
+  return {
+    token_id: item.token_id,
+    raw: item.raw,
+    kind: item.kind,
+    suggested_kind: item.suggested_kind,
+    classification_reason: item.classification_reason,
+    source: item.source_path || null,
+    mechanical_status: item.mechanical_status,
+    selected_source_mapping: item.source_path ? {
+      source_id: item.source_id || null,
+      source_path: item.source_path,
+      audit_path: item.audit_path || null,
+      locator: item.locator || '',
+      evidence_excerpt: selected?.evidence_excerpt || '',
+    } : null,
+    source_candidates: (item.source_candidates || []).slice(0, 3).map(candidate => ({
+      source_id: candidate.source_id,
+      source_path: candidate.source_path,
+      audit_path: candidate.audit_path || null,
+      locator: candidate.locator || '',
+      mechanical_status: candidate.mechanical_status,
+      evidence_excerpt: candidate.evidence_excerpt || '',
+    })),
+  };
+}
+
+function compactQueue(facts) {
   return facts
-    .map(fact => ({ fact, issues: factIssues(fact, provisional) }))
+    .map(fact => ({
+      fact,
+      issues: factIssues(fact, fact.semantic_status === 'pending'),
+    }))
     .filter(({ issues }) => issues.hard_errors.length || issues.human_review_required.length)
     .map(({ fact, issues }) => ({
         fact_id: fact.fact_id,
         page: fact.page_number,
         text: fact.claim_text,
-        numbers: (fact.items || []).map(item => ({
-          token_id: item.token_id,
-          raw: item.raw,
-          kind: item.kind,
-          suggested_kind: item.suggested_kind,
-          suggested_source: item.source_candidates[0]?.source_id || null,
-          mechanical_status: item.mechanical_status,
-        })),
+        numbers: (fact.items || []).map(numberEvidencePayload),
         blocking_errors: issues.hard_errors,
         human_review_required: issues.human_review_required,
         evidence_candidates: compactEvidence(fact),
@@ -116,25 +173,35 @@ function compactQueue(facts, provisional = true) {
 function semanticQueue(facts) {
   return facts
     .filter(fact => fact.semantic_status === 'pending'
-      && (fact.semantic_review_reasons || []).length > 0
+      && ((fact.semantic_review_reasons || []).length > 0
+        || (fact.items || []).some(item => ['sourced_fact', 'derived_fact'].includes(item.kind)))
       && factIssues(fact).hard_errors.length === 0)
     .map(fact => ({
       fact_id: fact.fact_id,
       page: fact.page_number,
       text: fact.claim_text,
-      why_model_is_needed: fact.semantic_review_reasons,
+      why_model_is_needed: (fact.semantic_review_reasons || []).length
+        ? fact.semantic_review_reasons
+        : ['来源事实不允许由 confirm 批量放行，需要从原文片段反向核对归属。'],
+      independent_attribution_checks: [
+        '主体或公司名是否与原文一致',
+        '数字对应的指标、对象和单位是否一致',
+        '时间范围、截止日期或计划属性是否一致',
+        '适用环节、人群、地域、层级和其他限定词是否遗漏',
+        '正负号、约数、至少/至多和四舍五入关系是否一致',
+      ],
       allowed_decisions: ['verified', 'qualified', 'fix_required', 'user_review_required'],
       evidence_candidates: compactEvidence(fact),
-      numbers: (fact.items || []).map(item => ({
-        token_id: item.token_id,
-        raw: item.raw,
-        kind: item.kind,
-        suggested_kind: item.suggested_kind,
-        classification_reason: item.classification_reason,
-        source: item.source_path || null,
-        mechanical_status: item.mechanical_status,
-      })),
+      numbers: (fact.items || []).map(numberEvidencePayload),
     }));
+}
+
+function autoConfirmable(fact) {
+  const external = (fact.items || []).some(item => ['sourced_fact', 'derived_fact'].includes(item.kind));
+  return fact.semantic_status === 'pending'
+    && !external
+    && (fact.semantic_review_reasons || []).length === 0
+    && factIssues(fact).hard_errors.length === 0;
 }
 
 function buildFromStored(copyPath, auditPath) {
@@ -149,23 +216,29 @@ function buildFromStored(copyPath, auditPath) {
   });
 }
 
-function reviewQueuePayload(current, strict = false) {
-  const blockingQueue = compactQueue(current.facts, !strict);
+function reviewQueuePayload(current) {
+  const blockingQueue = compactQueue(current.facts);
   const blockingIds = new Set(blockingQueue.map(item => item.fact_id));
   const semanticReviewQueue = semanticQueue(current.facts)
     .filter(item => !blockingIds.has(item.fact_id));
   return {
-    contract_version: 'fact-audit-review-queue/1.0.0',
+    contract_version: 'fact-audit-review-queue/1.1.0',
     copy_sha256: current.copy_sha256,
     audit_policy_version: current.audit_policy_version,
-    instruction_zh: '只处理这里列出的模糊项。每条选择 verified、qualified、fix_required 或 user_review_required；不要补写机械字段。',
+    instruction_zh: '把队列当作独立归属审计：不重读或凭记忆使用 bypage-draft，只比较每条 text 与其机器列出的原文片段。逐项核对主体、指标对象、时间、适用范围、单位和正负号；有任一限定不可见时不得 verified。每条选择 verified、qualified、fix_required 或 user_review_required；不要补写机械字段。',
+    status_rules_zh: {
+      verified: '来源事实的主体、数值、对象和全部限定均可见。',
+      qualified: '明确是建议、目标、计划值，或文案中已显示必要限定。',
+      fix_required: '归属、主体、指标、时间或限定词不匹配，必须修正文案或来源。',
+      user_review_required: '原文或机器副本不足以裁决，需要用户明确选择。',
+    },
     semantic_review_queue: semanticReviewQueue,
     blocking_queue: blockingQueue,
   };
 }
 
-function writeReviewQueue(queuePath, current, strict = false) {
-  const payload = reviewQueuePayload(current, strict);
+function writeReviewQueue(queuePath, current) {
+  const payload = reviewQueuePayload(current);
   mkdirSync(dirname(queuePath), { recursive: true });
   writeFileSync(queuePath, `${JSON.stringify(payload, null, 2)}\n`);
   return payload;
@@ -258,8 +331,75 @@ function applyDecisions(stored, decisions) {
   return stored;
 }
 
-const args = argsOf(process.argv.slice(2));
-const mode = args['--mode'] || 'prepare';
+function nextStepForCurrent(current, copyPath, auditPath, queuePath) {
+  const autoConfirmCount = (current.facts || []).filter(autoConfirmable).length;
+  const semanticCount = semanticQueue(current.facts || []).length;
+  const issues = classifyAuditIssues(current);
+  if (autoConfirmCount > 0) {
+    return {
+      mode: 'confirm',
+      reason_zh: `有 ${autoConfirmCount} 条仅含方案数字或非事实编号的低风险项可自动确认。`,
+      example: `node audit-final-copy.mjs --mode confirm --copy "${copyPath}" --audit "${auditPath}"`,
+    };
+  }
+  if (semanticCount > 0) {
+    return {
+      mode: 'resolve',
+      reason_zh: `有 ${semanticCount} 条来源事实或高风险语义项需要独立归属核对。只读 ${queuePath} 与其引用的原文片段。`,
+      example: `node audit-final-copy.mjs --mode resolve --copy "${copyPath}" --audit "${auditPath}" --decisions <fact-audit-decisions.json>`,
+    };
+  }
+  if (issues.hard_errors.length || issues.human_review_required.length) {
+    return {
+      mode: 'resolve',
+      reason_zh: `仍有 ${issues.hard_errors.length} 条阻断错误和 ${issues.human_review_required.length} 条人工例外，请根据 ${queuePath} 修正文案或决策。`,
+      example: `node audit-final-copy.mjs --mode resolve --copy "${copyPath}" --audit "${auditPath}" --decisions <fact-audit-decisions.json>`,
+    };
+  }
+  return {
+    mode: 'check',
+    reason_zh: '归属核对已完成，运行最终复算后再打开 By-page Review。',
+    example: `node audit-final-copy.mjs --mode check --copy "${copyPath}" --audit "${auditPath}"`,
+  };
+}
+
+const argv = process.argv.slice(2);
+const args = argsOf(argv);
+const mode = args['--mode'] || (args['--next'] ? 'next' : 'prepare');
+activeMode = mode;
+if (!argv.length || args['--help']) {
+  process.stdout.write(`${JSON.stringify({
+    valid: true,
+    mode: 'help',
+    workflow: ['prepare', 'confirm', 'resolve', 'check'],
+    note_zh: 'confirm 只批量确认无外部归属风险的项目；所有来源事实和衍生事实都必须在 resolve 中通过原文片段独立核对。任意阶段可用 --next --audit <path> 查看下一步。',
+    modes: MODE_GUIDE,
+  }, null, 2)}\n`);
+  process.exit(0);
+}
+if (args['--next']) {
+  if (!args['--audit'] || !existsSync(resolve(args['--audit']))) {
+    process.stdout.write(`${JSON.stringify({ valid: true, mode: 'next', next: MODE_GUIDE.prepare })}\n`);
+    process.exit(0);
+  }
+  const auditPath = resolve(args['--audit']);
+  const stored = JSON.parse(readFileSync(auditPath, 'utf8'));
+  const copyPath = resolve(args['--copy'] || stored.copy_path || '');
+  if (!existsSync(copyPath)) throw new Error(`无法确定当前文案：${copyPath}；请增加 --copy`);
+  const queuePath = args['--queue']
+    ? resolve(args['--queue'])
+    : resolve(dirname(auditPath), 'fact-audit-review-queue.json');
+  const current = buildFromStored(copyPath, auditPath);
+  writeReviewQueue(queuePath, current, true);
+  process.stdout.write(`${JSON.stringify({
+    valid: true,
+    mode: 'next',
+    summary: summarizeFacts(current.facts),
+    next: nextStepForCurrent(current, copyPath, auditPath, queuePath),
+    review_queue: queuePath,
+  })}\n`);
+  process.exit(0);
+}
 required(args, ['--copy', '--audit']);
 const copyPath = resolve(args['--copy']);
 const auditPath = resolve(args['--audit']);
@@ -291,6 +431,7 @@ if (mode === 'prepare') {
     semantic_review_queue_count: reviewQueue.semantic_review_queue.length,
     output: auditPath,
     review_queue: queuePath,
+    next: nextStepForCurrent(current, copyPath, auditPath, queuePath),
   })}\n`);
   process.exit(0);
 }
@@ -317,6 +458,7 @@ if (mode === 'resolve') {
     remaining_semantic_review_queue_count: reviewQueue.semantic_review_queue.length,
     output: auditPath,
     review_queue: queuePath,
+    next: nextStepForCurrent(current, copyPath, auditPath, queuePath),
   })}\n`);
   process.exit(issues.hard_errors.length ? 1 : 0);
 }
@@ -326,9 +468,7 @@ if (mode === 'confirm') {
   const current = buildFromStored(copyPath, auditPath);
   let confirmed = 0;
   current.facts = current.facts.map(fact => {
-    if (fact.semantic_status !== 'pending'
-      || (fact.semantic_review_reasons || []).length > 0
-      || factIssues(fact).hard_errors.length > 0) return fact;
+    if (!autoConfirmable(fact)) return fact;
     confirmed += 1;
     return provisionalDecision(fact);
   });
@@ -342,6 +482,7 @@ if (mode === 'confirm') {
     summary: current.summary,
     remaining_attention_count: reviewQueue.blocking_queue.length + reviewQueue.semantic_review_queue.length,
     output: auditPath,
+    next: nextStepForCurrent(current, copyPath, auditPath, queuePath),
   })}\n`);
   process.exit(0);
 }
@@ -360,6 +501,7 @@ if (mode === 'check') {
     hard_error_count: issues.hard_errors.length,
     human_review_required_count: issues.human_review_required.length,
     review_queue: queuePath,
+    next: nextStepForCurrent(current, copyPath, auditPath, queuePath),
   })}\n`);
   process.exit(issues.hard_errors.length ? 1 : 0);
 }

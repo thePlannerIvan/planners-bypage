@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { createServer } from 'node:http';
 import {
-  existsSync, mkdirSync, readFileSync, writeFileSync,
+  existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync,
 } from 'node:fs';
 import {
-  dirname, extname, relative, resolve,
+  dirname, extname, join, relative, resolve,
 } from 'node:path';
 
 function argsOf(argv) {
@@ -21,6 +21,7 @@ const args = argsOf(process.argv.slice(2));
 for (const key of ['--dir', '--feedback', '--ready-file']) if (!args[key]) fail(`缺少 ${key}`);
 const dir = resolve(args['--dir']);
 const feedbackPath = resolve(args['--feedback']);
+const historyDir = resolve(args['--history-dir'] || join(dirname(feedbackPath), 'history'));
 const readyPath = resolve(args['--ready-file']);
 const assetsDir = args['--assets-dir'] ? resolve(args['--assets-dir']) : null;
 const finalMdPath = args['--final-md'] ? resolve(args['--final-md']) : null;
@@ -30,6 +31,23 @@ const idleTimeoutMs = args['--idle-timeout-ms'] === undefined
 if (!Number.isInteger(port) || (port !== 0 && (port < 1024 || port > 65535))) fail('--port 必须为 0 或 1024–65535');
 if (!Number.isInteger(idleTimeoutMs) || idleTimeoutMs < 60_000) fail('--idle-timeout-ms 必须不少于 60000');
 if (!existsSync(resolve(dir, 'index.html'))) fail('审阅目录缺少 index.html');
+
+function appendFeedbackHistory(serialized) {
+  mkdirSync(historyDir, { recursive: true });
+  const rounds = readdirSync(historyDir)
+    .map(name => ({ name, match: name.match(/^round-(\d+)\.json$/) }))
+    .filter(item => item.match)
+    .sort((left, right) => Number(left.match[1]) - Number(right.match[1]));
+  const last = rounds.at(-1);
+  if (last) {
+    const lastPath = join(historyDir, last.name);
+    if (readFileSync(lastPath, 'utf8') === serialized) return lastPath;
+  }
+  const round = last ? Number(last.match[1]) + 1 : 1;
+  const historyPath = join(historyDir, `round-${String(round).padStart(2, '0')}.json`);
+  writeFileSync(historyPath, serialized);
+  return historyPath;
+}
 
 const mime = {
   '.html': 'text/html; charset=utf-8',
@@ -117,11 +135,14 @@ const server = createServer((request, response) => {
                 && typeof asset.caption === 'string'))));
         if (!valid) throw new Error('反馈格式无效或存在未处置页面');
         mkdirSync(resolve(feedbackPath, '..'), { recursive: true });
-        writeFileSync(feedbackPath, `${JSON.stringify(feedback, null, 2)}\n`);
+        const serialized = `${JSON.stringify(feedback, null, 2)}\n`;
+        writeFileSync(feedbackPath, serialized);
+        const historyPath = appendFeedbackHistory(serialized);
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({
           ok: true,
           feedback_path: feedbackPath,
+          history_path: historyPath,
           planned_final_md_path: finalMdPath,
         }));
         setTimeout(() => server.close(() => process.exit(0)), 150);
@@ -162,6 +183,7 @@ server.listen(port, '127.0.0.1', () => {
     port: actualPort,
     url: `http://127.0.0.1:${actualPort}/index.html`,
     feedback_path: feedbackPath,
+    feedback_history_dir: historyDir,
     started_at: new Date().toISOString(),
     idle_timeout_ms: idleTimeoutMs,
   };

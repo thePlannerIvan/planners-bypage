@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { assert, jsonOutput, pass, runNode } from '../lib/assert.mjs';
@@ -42,9 +42,31 @@ const saved = await fetch(new URL('/save-feedback', live.opened), {
   }),
 });
 assert(saved.ok, '真实 Storyline Review Server 必须保存图片决定');
+const savedPayload = await saved.json();
+assert(savedPayload.history_path.endsWith('history/round-01.json')
+  && existsSync(savedPayload.history_path), '第一轮 Storyline 反馈必须立即追加到 round-01.json');
 assert(jsonOutput(runNode(join(root, 'scripts/validate-storyline-review-feedback.mjs'), [
   '--feedback', live.feedback_path, '--architecture', architecturePath, '--assets', manifestPath,
 ])).valid, 'Storyline 反馈必须绑定当前架构和 Asset Manifest');
+await new Promise(resolveWait => setTimeout(resolveWait, 200));
+const secondLive = jsonOutput(runNode(join(root, 'scripts/start-storyline-review.mjs'), [
+  '--architecture', architecturePath, '--assets', manifestPath,
+  '--review-dir', join(temp, 'live'), '--port', '0',
+], { env: { ...process.env, REVIEW_TEST_NO_OPEN: '1' } }));
+const secondSaved = await fetch(new URL('/save-feedback', secondLive.opened), {
+  method: 'POST', headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({
+    contract_version: '1.1.0', review_kind: 'storyline', source_sha256: reviewData.sourceSha256,
+    saved_at: new Date().toISOString(), overall_decision: 'approve', overall_feedback_zh: '第二轮通过',
+    decisions: [{ page_number: 1, decision: 'approve', feedback_zh: '', attachments: [], asset_decisions: [
+      { asset_id: 'asset-one', status: 'selected' }, { asset_id: 'asset-two', status: 'backup' },
+    ] }],
+  }),
+});
+assert(secondSaved.ok, '第二轮 Storyline Review 必须可保存');
+const historyFiles = readdirSync(join(temp, 'live/history')).filter(name => /^round-\d+\.json$/.test(name));
+assert(historyFiles.length === 2 && historyFiles.includes('round-01.json') && historyFiles.includes('round-02.json'),
+  '审阅反馈必须按轮次留档，不得覆盖前一轮');
 
 const bypageDir = join(temp, 'bypage');
 writeFileSync(join(temp, 'page.png'), png);

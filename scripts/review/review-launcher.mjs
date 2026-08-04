@@ -1,5 +1,5 @@
 import {
-  closeSync, existsSync, openSync, readFileSync, unlinkSync,
+  closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
@@ -8,18 +8,37 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const sessionScript = resolve(here, 'review-session.mjs');
 
+function archiveExistingFeedback(reviewDir, feedbackPath) {
+  if (!existsSync(feedbackPath)) return;
+  const historyDir = join(reviewDir, 'history');
+  mkdirSync(historyDir, { recursive: true });
+  const serialized = readFileSync(feedbackPath, 'utf8');
+  const rounds = readdirSync(historyDir)
+    .map(name => ({ name, match: name.match(/^round-(\d+)\.json$/) }))
+    .filter(item => item.match)
+    .sort((left, right) => Number(left.match[1]) - Number(right.match[1]));
+  const last = rounds.at(-1);
+  const alreadyArchived = last && readFileSync(join(historyDir, last.name), 'utf8') === serialized;
+  if (!alreadyArchived) {
+    const round = last ? Number(last.match[1]) + 1 : 1;
+    writeFileSync(join(historyDir, `round-${String(round).padStart(2, '0')}.json`), serialized);
+  }
+  unlinkSync(feedbackPath);
+}
+
 export function launchReviewSession({
   reviewDir, feedbackPath, port = 0, assetsDir = null, finalMdPath = null,
 }) {
   const readyPath = join(reviewDir, 'review-session.json');
   if (existsSync(readyPath)) unlinkSync(readyPath);
-  if (existsSync(feedbackPath)) unlinkSync(feedbackPath);
+  archiveExistingFeedback(reviewDir, feedbackPath);
   const logPath = join(reviewDir, 'review-session.log');
   if (existsSync(logPath)) unlinkSync(logPath);
   const sessionArgs = [
     sessionScript,
     '--dir', reviewDir,
     '--feedback', feedbackPath,
+    '--history-dir', join(reviewDir, 'history'),
     '--ready-file', readyPath,
     '--port', String(port),
   ];

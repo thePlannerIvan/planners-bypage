@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -6,6 +7,14 @@ import { assert, jsonOutput, pass, runNode } from '../lib/assert.mjs';
 import { classifyAuditIssues, numericTokens } from '../../scripts/lib/final-fact-audit.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
+const help = jsonOutput(runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--help']));
+assert(help.workflow.join('>') === 'prepare>confirm>resolve>check'
+  && help.modes.resolve.example.includes('--copy')
+  && help.modes.resolve.example.includes('--decisions'), 'CLI help 必须披露完整状态序列和每个模式的参数模板');
+const badResolve = spawnSync(process.execPath, [join(root, 'scripts/audit-final-copy.mjs'), '--mode', 'resolve', '--audit', 'missing.json'], { encoding: 'utf8' });
+const badResolvePayload = JSON.parse(badResolve.stdout.trim());
+assert(badResolve.status !== 0 && badResolvePayload.example.includes('--copy')
+  && badResolvePayload.example.includes('--decisions'), '参数错误必须返回当前模式的完整用法，不让执行者试错');
 const normalized = numericTokens('预算200万元，增长-12.5%，目标40-50%。');
 assert(normalized[0].values[0] === 2_000_000, '万元必须归一');
 assert(normalized[1].values[0] === -12.5, '负数不能被识别为区间');
@@ -14,7 +23,7 @@ assert(normalized[2].values.length === 2, '数字区间必须保留两个端点'
 const temp = mkdtempSync(join(tmpdir(), 'planners-bypage-fact-'));
 const sourceRoot = join(temp, 'source');
 mkdirSync(sourceRoot);
-const researchBytes = Buffer.from('# 研究\n\n2025 年转化率增长 12.5%，样本为 800 人。\n');
+const researchBytes = Buffer.from('# 研究\n\n2025 年转化率增长 12.5%，样本为 800 人。\n高质量反馈比例从约 50% 提升到 95%，反馈量增长 89%。\n');
 writeFileSync(join(sourceRoot, 'research.md'), researchBytes);
 const sourceIndex = join(temp, 'source-index.json');
 writeFileSync(sourceIndex, JSON.stringify({
@@ -58,6 +67,24 @@ const audit = join(temp, 'fact-audit.json');
 const prepared = jsonOutput(runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'prepare', '--copy', copy, '--source-index', sourceIndex, '--materials', materials, '--source-root', sourceRoot, '--audit', audit]));
 assert(prepared.summary.total_numbers === 4, '必须覆盖实际可见的全部数字');
 const stored = JSON.parse(readFileSync(audit, 'utf8'));
+const preparedQueue = JSON.parse(readFileSync(prepared.review_queue, 'utf8'));
+const sourcedQueueItem = preparedQueue.semantic_review_queue.find(fact =>
+  fact.numbers.some(item => item.kind === 'sourced_fact'));
+assert(preparedQueue.contract_version === 'fact-audit-review-queue/1.1.0'
+  && sourcedQueueItem
+  && sourcedQueueItem.independent_attribution_checks.length >= 5
+  && sourcedQueueItem.numbers.some(item => item.kind === 'sourced_fact'
+    && item.selected_source_mapping?.evidence_excerpt), '来源事实必须进入独立归属队列，并逐数字展示机器命中的原文片段');
+const confirmed = jsonOutput(runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'confirm', '--copy', copy, '--audit', audit]));
+const afterConfirm = JSON.parse(readFileSync(audit, 'utf8'));
+const afterConfirmQueue = JSON.parse(readFileSync(prepared.review_queue, 'utf8'));
+assert(confirmed.next.mode === 'resolve'
+  && afterConfirm.facts.some(fact => fact.semantic_status === 'pending'
+    && fact.items.some(item => item.kind === 'sourced_fact'))
+  && afterConfirmQueue.semantic_review_queue.some(fact =>
+    fact.independent_attribution_checks?.length >= 5), 'confirm 只能放行低风险方案数字/编号，不得批量放行来源事实或把它们降级成无检查清单的阻断项');
+const next = jsonOutput(runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--next', '--audit', audit]));
+assert(next.next.mode === 'resolve' && next.next.example.includes('--decisions'), '--next 必须根据当前审计状态给出可直接执行的下一步');
 const decisions = join(temp, 'decisions.json');
 writeFileSync(decisions, JSON.stringify({
   contract_version: 'fact-audit-decisions/1.0.0',
@@ -75,6 +102,42 @@ const unchanged = readFileSync(copy, 'utf8');
 writeFileSync(copy, unchanged.replace('预算的 60%', '预算的 65%'));
 const incremental = jsonOutput(runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'prepare', '--copy', copy, '--source-index', sourceIndex, '--materials', materials, '--source-root', sourceRoot, '--audit', audit]));
 assert(incremental.summary.carried_unchanged >= 1 && incremental.summary.changed === 1, '局部改文案必须只重查变化事实');
+
+const listCopy = join(temp, 'list-bypage.md');
+writeFileSync(listCopy, `---
+contract_version: 1.0.0
+page_number: 1
+section_id: sec-list
+page_type: data
+page_title: "列表中的事实数字"
+main_message: "只把行首序号当编号"
+---
+
+## Page Content
+
+1. 调研显示，样本为 800 人。
+2. 高质量反馈比例从约 50% 提升到 95%，反馈量增长 89%。
+
+## Speaker Notes
+
+无。
+
+## Production Notes
+
+无。
+
+## Sources
+
+- src-research
+`);
+const listAudit = join(temp, 'list-audit.json');
+runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'prepare', '--copy', listCopy, '--source-index', sourceIndex, '--materials', materials, '--source-root', sourceRoot, '--audit', listAudit]);
+const listItems = JSON.parse(readFileSync(listAudit, 'utf8')).facts.flatMap(fact => fact.items);
+assert(listItems.find(item => item.raw === '1')?.suggested_kind === 'non_factual'
+  && listItems.find(item => item.raw.includes('800'))?.suggested_kind === 'sourced_fact', '行首列表编号不得让同句后续的真实数字被误判为 non_factual');
+const historicalChangeItems = listItems.filter(item => ['50%', '95%', '89%'].includes(item.raw));
+assert(historicalChangeItems.length === 3
+  && historicalChangeItems.every(item => item.suggested_kind === 'sourced_fact'), '已发生的“从 A 提升到 B”和“增长 C”是来源事实，只有存在目标/建议/计划语气时才能判为 planned_value');
 
 const pdfBytes = Buffer.from('binary-pdf-placeholder');
 writeFileSync(join(sourceRoot, 'report.pdf'), pdfBytes);

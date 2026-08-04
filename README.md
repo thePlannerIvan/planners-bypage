@@ -1,6 +1,6 @@
 # Planners Bypage
 
-[![Version](https://img.shields.io/badge/version-1.1.0-0f766e)](https://github.com/thePlannerIvan/planners-bypage/releases)
+[![Version](https://img.shields.io/badge/version-1.2.0-0f766e)](https://github.com/thePlannerIvan/planners-bypage/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-2563eb)](LICENSE)
 [![Validation](https://github.com/thePlannerIvan/planners-bypage/actions/workflows/validate.yml/badge.svg)](https://github.com/thePlannerIvan/planners-bypage/actions/workflows/validate.yml)
 
@@ -104,11 +104,27 @@ npm test
 
 公开验证集包含结构、审阅 Contract、图片、事实审计和交付五类测试。详见 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [SECURITY.md](SECURITY.md)。
 
+版本变更详见 [CHANGELOG.md](CHANGELOG.md)。
+
 ## 从 1.0 升级到 1.1
 
 1.1 提升了 Source Index、Review Contract 和 Asset Manifest 的版本，并加入二进制文档审计副本、衍生公式操作数引用、符号不匹配检查、图片视觉门禁与交付路径校验。
 
 对于 1.0 时尚未完成的项目，不要混用旧反馈或手工改版本号；请从来源登记阶段重建 Source Index，并重新生成 Asset Manifest 和两轮审阅 Contract。
+
+## 从 1.1 升级到 1.2
+
+1.2 把事实审计从“机械命中后批量确认”改为“来源反推的独立归属核对”：所有来源/衍生事实都进入 Review Queue，每个数字展示命中的原文片段，并强制检查主体、指标、时间、单位、限定词和符号。`confirm` 只处理方案数字和非事实编号。
+
+同时新增：
+
+- `audit-final-copy.mjs --help` 和状态感知的 `--next`；
+- 每个模式错误中的必需参数与完整命令模板；
+- Storyline/By-page 反馈按 `history/round-NN.json` 追加留档；
+- 无原生视觉、多语言临时脚本和未知 Python 环境的降级边界；
+- 修复行首列表编号导致同句后续数字被误标为 `non_factual` 的问题。
+
+未完成的 1.1 项目应重新运行 `prepare`。新的 `audit_policy_version` 会自动使旧语义放行失效，然后按 `prepare → confirm → resolve → check` 重建归属审计。
 
 ## 授权、署名与商业服务
 

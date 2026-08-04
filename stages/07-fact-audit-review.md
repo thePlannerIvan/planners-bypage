@@ -15,6 +15,7 @@
 - 文案变化后只重查变化项；
 - 来源缺失、未分类和计算错误保持阻断；
 - 来源明确但机器无法裁决的少数事实交给用户明确选择；PDF、Word、PPT 不得因为格式本身批量进入例外。
+- 所有来源事实和衍生事实都进入“来源反推”归属队列；`confirm` 只能批量确认不涉及外部归属的方案数字和非事实编号。
 
 不得绕过 Material Pack 做全库数字碰撞，也不得手写机械通过状态。
 
@@ -22,7 +23,24 @@
 node "<Skill>/scripts/audit-final-copy.mjs" +  --mode prepare +  --copy "<project>/.bypage-work/bypage-draft.md" +  --source-index "<project>/.bypage-work/source-index.json" +  --materials "<project>/.bypage-work/page-material-packs.json" +  --source-root "<真实来源根目录>" +  --audit "<project>/.bypage-work/fact-audit.json"
 ```
 
-模型只处理生成的短 Review Queue，把语义决定写入 `fact-audit-decisions.json`，再运行 `--mode resolve --decisions <path>`。文案修改后重新 prepare；准备打开终审前运行 `--mode check`。
+完整状态序列是：
+
+```text
+prepare → confirm → resolve → check
+```
+
+- `prepare`：生成 Audit 和 `fact-audit-review-queue.json`，其中每个来源数字都绑定机器命中的原文片段；
+- `confirm`：仅自动确认方案数字、页码、列表编号等低归属风险项；
+- `resolve`：在独立归属上下文中只读 Review Queue 及它引用的原文片段，不重读或凭记忆使用 `bypage-draft.md`。逐条反向核对主体/公司名、指标对象、时间、单位、适用范围、层级和正负号，再把决定写入 `fact-audit-decisions.json`；
+- `check`：最后重建并复算当前文案，确认可以进入 By-page Review。
+
+任意时刻不确定下一步时，运行：
+
+```bash
+node "<Skill>/scripts/audit-final-copy.mjs" --next --audit "<project>/.bypage-work/fact-audit.json"
+```
+
+无参数或 `--help` 会返回完整模式、必需参数和命令模板。文案修改后重新 `prepare`。
 
 ## By-page Review
 
@@ -35,6 +53,8 @@ node "<Skill>/scripts/start-bypage-review.mjs" +  --copy "<project>/.bypage-work
 
 node "<Skill>/scripts/validate-review-feedback.mjs" +  --feedback "<project>/.bypage-work/reviews/bypage/review-feedback.json" +  --copy "<project>/.bypage-work/bypage-draft.md" +  --audit "<project>/.bypage-work/fact-audit.json" +  --kind final
 ```
+
+`review-feedback.json` 保留最新终审；每次保存同时追加到 `reviews/bypage/history/round-NN.json`。返修后的新终审不得覆盖前一轮反馈。
 
 终审上传图片存在时，先运行 `import-review-assets.mjs`，再更新 Material Pack 与 By-page 并重新审计、重审。
 

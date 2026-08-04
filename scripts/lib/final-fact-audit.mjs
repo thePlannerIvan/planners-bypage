@@ -531,18 +531,25 @@ function candidatesForToken(fact, token, pack, entries, sourceRoot, auditRoot) {
 function classificationForToken(fact, token, tokenPosition, candidates) {
   const escaped = token.raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const productIdentifier = new RegExp(`(?:pi\\s*plus|astro\\s*plus|speed|q)\\s*${escaped}(?:k)?`, 'i').test(fact.claim_text);
-  if (token.identifier_like || productIdentifier || /^\s*(?:step\s*)?\d+[.、)]/i.test(fact.claim_text)
+  const tokenIndex = Number.isInteger(token.start) ? token.start : fact.claim_text.indexOf(token.raw);
+  const leadingListMarker = fact.claim_text.match(/^\s*(?:step\s*)?(\d+)[.、)]/i);
+  const tokenIsLeadingListMarker = Boolean(leadingListMarker)
+    && tokenIndex >= 0
+    && tokenIndex < leadingListMarker[0].length
+    && token.values.length === 1
+    && Number(token.values[0]) === Number(leadingListMarker[1]);
+  if (token.identifier_like || productIdentifier || tokenIsLeadingListMarker
     || /双\s*11|618|说「|写「/.test(fact.claim_text)) {
     return { kind: 'non_factual', confidence: 'high', locked: false, reason: '名称、编号或示例数字' };
   }
-  const tokenIndex = Number.isInteger(token.start) ? token.start : fact.claim_text.indexOf(token.raw);
   const tokenContext = tokenIndex >= 0
     ? fact.claim_text.slice(Math.max(0, tokenIndex - 18), Math.min(fact.claim_text.length, token.end + 12))
     : fact.claim_text;
   const before = tokenIndex >= 0 ? fact.claim_text.slice(0, tokenIndex) : '';
   const after = tokenIndex >= 0 ? fact.claim_text.slice(token.end) : '';
-  const plannedTransition = /目标|建议|计划|预计|争取|做到|应|需|将|希望|控制|提升|增长|增加/.test(fact.claim_text);
-  const fromAt = plannedTransition ? before.lastIndexOf('从') : -1;
+  const transitionMention = /提升(?:到|至)|增长(?:到|至)|增加(?:到|至)|降(?:到|至)|控制(?:到|至)|从[^\n，。；|]{0,24}到/.test(fact.claim_text);
+  const normativeTransition = /目标|建议|计划|预计|争取|做到|应|需|将|希望|控制|预算/.test(fact.claim_text);
+  const fromAt = transitionMention ? before.lastIndexOf('从') : -1;
   const transitionMatch = fromAt >= 0
     ? fact.claim_text.slice(fromAt).match(/提升(?:到|至)|增长(?:到|至)|增加(?:到|至)|降(?:到|至)|控制(?:到|至)|到|至/)
     : null;
@@ -550,8 +557,11 @@ function classificationForToken(fact, token, tokenPosition, candidates) {
   if (transitionAt >= 0 && token.end <= transitionAt) {
     return { kind: 'sourced_fact', confidence: 'high', locked: false, reason: '从A到B关系中的当前基线' };
   }
-  if (transitionAt >= 0 && tokenIndex > transitionAt) {
+  if (transitionAt >= 0 && tokenIndex > transitionAt && normativeTransition) {
     return { kind: 'planned_value', confidence: 'high', locked: false, reason: '从A到B关系中的目标值' };
+  }
+  if (transitionAt >= 0 && tokenIndex > transitionAt && candidates[0]) {
+    return { kind: 'sourced_fact', confidence: 'high', locked: false, reason: '来源支持的历史变化结果' };
   }
   if (/目标不是|并非目标|不是目标/.test(before.slice(-24))) {
     const best = candidates[0];
@@ -907,7 +917,7 @@ export function buildAudit({
       carry_state: carryState,
     };
     const semanticReasons = semanticReviewReasons(builtFact);
-    const policyChanged = previous.audit_policy_version !== 'strict-three-exit/1.1.0';
+    const policyChanged = previous.audit_policy_version !== 'source-first-attribution/1.2.0';
     if (policyChanged && semanticReasons.length) {
       builtFact.semantic_status = 'pending';
       builtFact.semantic_notes_zh = '';
@@ -920,7 +930,7 @@ export function buildAudit({
   const summary = summarizeFacts(facts);
   return {
     contract_version: '2.0.0',
-    audit_policy_version: 'strict-three-exit/1.1.0',
+    audit_policy_version: 'source-first-attribution/1.2.0',
     generated_at: new Date().toISOString(),
     copy_path: copyPath,
     copy_sha256: sha256(copyRaw),
@@ -929,7 +939,7 @@ export function buildAudit({
     source_root: sourceRoot,
     summary,
     facts,
-    instructions_zh: '脚本完成数字覆盖、Excel/文本回源、候选证据与简单公式复算。模型只处理 fact-audit-review-queue：查证后确认、加限定、修改文案，或标记 user_review_required 交给用户。不得改 kind 绕过计算，不使用 Python 补机械字段。',
+    instructions_zh: '脚本完成数字覆盖、Excel/文本回源、每个数字到原文片段的候选映射与简单公式复算。归属审计时只读 fact-audit-review-queue 及其引用片段，从来源反向确认主体、指标、时间、适用范围、单位和正负号。不得用 confirm 批量放行来源事实，不得改 kind 绕过计算，不使用 Python 补机械字段。',
   };
 }
 

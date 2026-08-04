@@ -27,6 +27,8 @@ node "<Skill>/scripts/validate-storyline-review-feedback.mjs" +  --feedback "<pr
 node "<Skill>/scripts/import-review-assets.mjs" +  --feedback "<project>/.bypage-work/reviews/storyline/review-feedback.json" +  --manifest "<project>/.bypage-work/asset-manifest.json" +  --source-id "src-user-review"
 ```
 
+`review-feedback.json` 始终表示最新一轮；每次保存还必须追加到 `reviews/storyline/history/round-NN.json`。重启审阅时不得覆盖或删除已有轮次，方向性反馈即使已被后续版本吸收，也要保留供回查。
+
 只有反馈实际含上传图片时才运行 import；随后由模型把返回的 Asset ID 分配到 Architecture。
 
 ## 完成标准

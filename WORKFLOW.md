@@ -21,7 +21,9 @@
 │   │   └── previews/
 │   └── reviews/
 │       ├── storyline/
+│       │   └── history/round-NN.json
 │       └── bypage/
+│           └── history/round-NN.json
 └── deliverable/
     ├── by-page.md
     └── assets/
@@ -49,6 +51,12 @@
 
 人工反馈必须绑定当前输入 Hash；结构、文案、事实审计或资产选择变化时，相应旧批准失效。
 
+## 运行环境降级
+
+- Skill 自带的确定性脚本优先使用 Node.js，不为临时 JSON/文本处理额外生成 Python 脚本。
+- 确需生成包含中文或其他非 ASCII 内容的临时脚本时，使用文件编辑工具写入 UTF-8 文件后再运行；不通过 shell heredoc 或多层引号直接喂给解释器。
+- 不假定 `python`/`python3` 版本、默认编码、特定 vision 供应商或私有密钥路径存在。必须先读取当前环境可用能力；没有可靠视觉能力时转为用户在审阅页确认。
+
 ## 责任边界
 
 - 文件能力负责真实读取、转换和媒体提取；不得只凭扩展名宣称已读。
@@ -57,6 +65,7 @@
 - Material Pack 只收集实际页面需要的材料，不建立全库 Evidence Ledger。
 - Asset Manifest 是唯一图片状态接口；Review 上传必须回写它。
 - 事实审计只扫描终稿实际展示或说出的事实；人工定位保留原文件，机器定位自动读取绑定的审计副本。
+- `review-feedback.json` 是当前最新反馈；`reviews/<kind>/history/round-NN.json` 是不可覆盖的审阅轮次历史。
 
 ## 运行后学习
 

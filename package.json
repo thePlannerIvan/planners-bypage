@@ -1,6 +1,6 @@
 {
   "name": "planners-bypage",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "把多源文档整理成经过 Storyline 与逐页审阅、可追溯的 PPT By-page 内容包",
   "license": "AGPL-3.0-only",

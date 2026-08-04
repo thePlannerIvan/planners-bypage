@@ -2,8 +2,8 @@ cff-version: 1.2.0
 title: "Planners Bypage"
 message: "If you use this Skill, please cite the project."
 type: software
-version: "1.1.0"
-date-released: "2026-08-03"
+version: "1.2.0"
+date-released: "2026-08-04"
 authors:
   - name: "阿祖不看 TVC"
 repository-code: "https://github.com/thePlannerIvan/planners-bypage"
