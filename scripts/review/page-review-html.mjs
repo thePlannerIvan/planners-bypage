@@ -45,6 +45,8 @@ button{cursor:pointer}
 .origin{margin-left:auto;display:flex;gap:9px;align-items:center;font-size:10px;color:#aaa49a;white-space:nowrap}
 .origin b{color:#f0ebe2}.origin a{color:#d8a58e;text-decoration:none;border-bottom:1px solid #76594d}
 .progress{display:flex;align-items:center;gap:10px;margin-left:8px}
+.reload{background:transparent;border:1px solid #55514a;border-radius:6px;padding:5px 10px;font-size:13px;color:inherit;cursor:pointer;white-space:nowrap}
+.reload:hover{background:rgba(255,255,255,.08)}
 .track{width:145px;height:5px;background:#55514a;border-radius:6px;overflow:hidden}
 .fill{height:100%;width:0;background:#e5a487;transition:width .2s}
 .shell{display:grid;grid-template-columns:310px minmax(0,1fr);min-height:calc(100vh - 74px)}
@@ -96,6 +98,9 @@ h1{font:700 clamp(30px,4vw,48px)/1.15 "Songti SC","Noto Serif CJK SC",serif;marg
 .fact-exception h3{margin:0 0 7px;font-size:15px;color:#744812}
 .fact-exception p{margin:4px 0;font-size:13px;line-height:1.65}
 .fact-exception code{font:12px/1.5 "SFMono-Regular",Consolas,monospace;word-break:break-all}
+.prior-round{margin:0 0 15px;border:1px solid var(--line);background:#f1ece2;border-radius:8px;padding:13px 15px}
+.prior-round h3{margin:0 0 7px;font-size:15px;color:#5f594f}
+.prior-round p{margin:4px 0;font-size:13px;line-height:1.65;color:#5f594f}
 .review-actions{display:flex;gap:8px;margin-bottom:10px}
 .decision{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:9px 15px;font-size:14px;color:var(--muted)}
 .decision[data-value="approve"].active{background:var(--ok);border-color:var(--ok);color:white}
@@ -133,6 +138,7 @@ footer a{color:var(--accent)}
   <div class="kind">${safeTitle}</div>
   <div class="origin"><b>OPEN SOURCE WORKFLOW</b><a href="https://demyth.info" target="_blank" rel="noreferrer">demyth.info</a><span>小红书：阿祖不看 TVC</span></div>
   <div class="progress"><div class="track"><div class="fill" id="progressFill"></div></div><span id="progressText">0/${pages.length}</span></div>
+  <button class="reload" id="reload" title="重新加载页面（页面本身被更新过、或想丢弃本地未保存的输入时用它）">&#8635; 刷新</button>
 </header>
 <div class="shell">
   <aside class="sidebar">
@@ -157,7 +163,7 @@ footer a{color:var(--accent)}
   <div class="completion-card">
     <div class="completion-mark">✓</div>
     <h2 id="completionTitle">反馈已保存</h2>
-    <p>请返回 Codex 对话，并发送「已完成」。模型会读取本次反馈并继续处理。</p>
+    <p id="completionNote">请返回 Codex 对话，并发送「已完成」。模型会读取本次反馈并继续处理。</p>
     <div class="completion-path" id="completionPath"></div>
     <div class="completion-actions">
       <button class="primary" id="copyCompleted">复制「已完成」</button>
@@ -165,11 +171,18 @@ footer a{color:var(--accent)}
     </div>
   </div>
 </div>
+{{REVIEW_BRIDGE}}
 <script>
 const REVIEW = ${data};
-const decisions = new Map(REVIEW.pages.filter(page => !page.requires_fact_decision).map(page => [page.page_number, 'approve']));
+// 预设值**只来自产出方**（page.default_decision）——「这一页默认通过吗」是 Skill 的语义，不是页面的。
+// 事实例外页与"上一轮人要求修改"的页都是 null：必须由人明确选择（一次点击即可通过，不需要清理任何东西）。
+const decisions = new Map(REVIEW.pages.filter(page => page.default_decision).map(page => [page.page_number, page.default_decision]));
 const attachments = new Map(REVIEW.pages.map(page => [page.page_number, []]));
-const assetDecisions = new Map(REVIEW.pages.map(page => [page.page_number, (page.asset_candidates || []).map(asset => ({asset_id:asset.asset_id,status:asset.status||'backup'}))]));
+// 逐张图片的初值也来自产出方（page.seeded_asset_decisions）：人上一轮选过就用人的，没选过才用生成器的候选分组。
+// **生成器的候选分组不是人的决定，只有人选过的才是。**
+const assetDecisions = new Map(REVIEW.pages.map(page => [page.page_number,
+  (page.seeded_asset_decisions || (page.asset_candidates || []).map(asset => ({asset_id:asset.asset_id,status:asset.status||'backup'})))
+    .map(asset => ({asset_id:asset.asset_id,status:asset.status||'backup'}))]));
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const list = value => Array.isArray(value) ? value.join('\\n') : String(value ?? '');
 const safeUrl = value => /^(?:assets\\/|\\.?\\.?\\/|https?:\\/\\/)/.test(String(value || '')) ? String(value) : '';
@@ -215,7 +228,12 @@ function render(){
     const secondary = (page.sections || []).filter(item => item.collapsed).map(item => '<section class="section"><h3>' + esc(item.label) + '</h3><div class="section-content '+(item.format==='markdown'?'rich-copy':'')+'">' + (item.format==='markdown'?markdown(item.value):esc(list(item.value))) + '</div></section>').join('');
     const points = (page.points || []).length ? '<ul class="points">'+page.points.map(point=>'<li>'+esc(point)+'</li>').join('')+'</ul>' : '';
     const upload = REVIEW.allowUploads ? '<div class="dropzone" data-dropzone="'+page.page_number+'">拖拽图片到这里，或点击选择<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple data-file="'+page.page_number+'"></div><div class="asset-list" data-assets="'+page.page_number+'"></div>' : '';
-    const assetCard=(asset,index)=>'<div class="candidate-card"><img src="'+esc(asset.url)+'" alt="'+esc(asset.alt||asset.asset_id)+'"><strong>'+esc(asset.alt||asset.asset_id)+'</strong><p>'+esc(asset.role||'')+'</p><p>'+esc(asset.reason||'')+'</p><select data-asset-choice="'+page.page_number+':'+index+'"><option value="selected" '+(asset.status==='selected'?'selected':'')+'>采用</option><option value="backup" '+(asset.status==='backup'?'selected':'')+'>备用</option><option value="excluded" '+(asset.status==='excluded'?'selected':'')+'>排除</option><option value="replace" '+(asset.status==='replace'?'selected':'')+'>需要替换</option></select></div>';
+    // 图片下拉框显示的是**这一轮真正生效的状态**：人上一轮选过就是他选的，没选过才是生成器的候选分组。
+    const seededStatus = asset_id => {
+      const hit = (assetDecisions.get(page.page_number) || []).find(entry => entry.asset_id === asset_id);
+      return hit ? hit.status : (page.asset_candidates || []).find(item => item.asset_id === asset_id)?.status || 'backup';
+    };
+    const assetCard=(asset,index)=>{ const current = seededStatus(asset.asset_id); return '<div class="candidate-card"><img src="'+esc(asset.url)+'" alt="'+esc(asset.alt||asset.asset_id)+'"><strong>'+esc(asset.alt||asset.asset_id)+'</strong><p>'+esc(asset.role||'')+'</p><p>'+esc(asset.reason||'')+'</p><select data-asset-choice="'+page.page_number+':'+index+'"><option value="selected" '+(current==='selected'?'selected':'')+'>采用</option><option value="backup" '+(current==='backup'?'selected':'')+'>备用</option><option value="excluded" '+(current==='excluded'?'selected':'')+'>排除</option><option value="replace" '+(current==='replace'?'selected':'')+'>需要替换</option></select></div>'; };
     const recommended=(page.asset_candidates||[]).map((asset,index)=>({asset,index})).filter(item=>item.asset.group!=='other');
     const other=(page.asset_candidates||[]).map((asset,index)=>({asset,index})).filter(item=>item.asset.group==='other');
     const candidates = recommended.length||other.length ? '<section class="candidate-gallery"><h3>推荐图片</h3><div class="candidate-grid">'+recommended.map(item=>assetCard(item.asset,item.index)).join('')+'</div>'+(other.length?'<details class="details"><summary>查看其他候选图片（'+other.length+'）</summary><div class="details-body"><div class="candidate-grid">'+other.map(item=>assetCard(item.asset,item.index)).join('')+'</div></div></details>':'')+'</section>' : '';
@@ -224,9 +242,22 @@ function render(){
         (page.fact_exceptions || []).map(item => '<p><strong>'+esc(item.raw)+'</strong>：'+esc(item.reason)+'<br><code>'+esc(item.source_path || '未指定来源')+(item.locator?' · '+esc(item.locator):'')+'</code></p>').join('') +
         '</div>'
       : '';
-    const decisionLabel = page.requires_fact_decision ? '本页决定（必须明确选择）' : '本页决定（默认通过）';
+    // 上一轮人说过的话：**只作只读上下文**，绝不预填进输入框 ——
+    // 预填进去会被当成"本轮的意见"，于是页面自己判成需要修改、逼人先清空才能通过（R7 的反面）。
+    const priorLines = [];
+    if (page.prior && page.prior.decision === 'revise') {
+      if (page.prior.feedback_zh) priorLines.push('「' + page.prior.feedback_zh + '」');
+      const priorAssets = (page.prior.asset_decisions || []).length;
+      if (priorAssets) priorLines.push('图片改动：' + priorAssets + ' 处');
+    }
+    const priorRound = priorLines.length
+      ? '<div class="prior-round"><h3>上一轮你要求修改（这一页已按它改过）</h3><p>只作参考，<strong>不算本轮意见</strong>；复核后点一下「通过」即可，不用先清空任何东西。</p><p>'+priorLines.map(line=>esc(line)).join('<br>')+'</p></div>'
+      : '';
+    const decisionLabel = page.default_decision
+      ? '本页决定（默认通过）'
+      : page.requires_fact_decision ? '本页决定（必须明确选择）' : '本页决定（上一轮要求修改，复核后请明确选择）';
     const approveLabel = page.requires_fact_decision ? '接受事实例外并通过' : '通过';
-    const approveActive = page.requires_fact_decision ? '' : ' active';
+    const approveActive = page.default_decision ? ' active' : '';
     article.innerHTML =
       '<header class="page-head"><div class="page-no">' + String(page.page_number).padStart(2,'0') + '</div><h2>' + esc(page.title) + '</h2></header>' +
       '<div class="claim">' + esc(page.claim || '') + '</div>' +
@@ -234,10 +265,16 @@ function render(){
       '<div class="sections">' + primary + '</div>' +
       ((meta||secondary)?'<details class="details"><summary>查看工作信息</summary><div class="details-body">'+(meta?'<div class="meta">'+meta+'</div>':'')+secondary+'</div></details>':'') +
       candidates +
-      '<div class="review">'+factExceptions+upload+'<span class="label">'+decisionLabel+'</span><div class="review-actions"><button class="decision'+approveActive+'" data-page="' + page.page_number + '" data-value="approve">'+approveLabel+'</button><button class="decision" data-page="' + page.page_number + '" data-value="revise">需要修改</button></div><textarea data-feedback="' + page.page_number + '" placeholder="仅在本页有问题时填写：标题、内容、数据、图片或表达应该如何调整。"></textarea></div>';
+      '<div class="review">'+factExceptions+priorRound+upload+'<span class="label">'+decisionLabel+'</span><div class="review-actions"><button class="decision'+approveActive+'" data-page="' + page.page_number + '" data-value="approve">'+approveLabel+'</button><button class="decision" data-page="' + page.page_number + '" data-value="revise">需要修改</button></div><textarea data-feedback="' + page.page_number + '" placeholder="仅在本页有问题时填写：标题、内容、数据、图片或表达应该如何调整。"></textarea></div>';
     root.appendChild(article);
   });
-  REVIEW.pages.forEach(page=>{if(!page.requires_fact_decision)document.getElementById('dot-'+page.page_number).className='dot done'});
+  // 圆点只说这一页现在的状态：默认通过 = 绿；上一轮要求修改 = 橙（等人复核）；必须选的还没选 = 灰。
+  REVIEW.pages.forEach(page=>{
+    const dot = document.getElementById('dot-'+page.page_number);
+    if (!dot) return;
+    if (page.default_decision) dot.className = 'dot done';
+    else if (page.requires_recheck) dot.className = 'dot revise';
+  });
   document.querySelectorAll('.decision').forEach(button => button.addEventListener('click', () => {
     const page = Number(button.dataset.page);
     decisions.set(page, button.dataset.value);
@@ -264,6 +301,8 @@ function render(){
   }));
   if(REVIEW.allowUploads) bindUploads();
   document.getElementById('saveButton').addEventListener('click', save);
+// R11：刷新出口**永久可见**，不藏在任何告警里（页面是重出的产物，作者随时可能要看最新一版）
+document.getElementById('reload').addEventListener('click', () => location.reload());
 }
 function bindUploads(){
   document.querySelectorAll('[data-dropzone]').forEach(zone=>{
@@ -280,10 +319,20 @@ async function uploadFiles(page,files){
   for(const file of files){
     if(!file.type.startsWith('image/'))continue;
     zone.textContent='正在上传 '+file.name+'…';
-    const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file)});
-    const response=await fetch('/upload-asset',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({page_number:page,filename:file.name,mime:file.type,data_base64:data})});
-    const result=await response.json();if(!response.ok||!result.ok){zone.textContent='上传失败：'+(result.error||file.name);continue}
-    attachments.get(page).push({path:result.markdown_path,url:result.url,alt:file.name.replace(/\\.[^.]+$/,''),caption:''});renderAssets(page);
+    // 目标相对 dir（＝审阅目录），宿主做包含性校验。两条路写的是**同一个**相对路径。
+    const stem=String(file.name).replace(/\\.[^.]+$/,'').replace(/[^\\p{L}\\p{N}._-]+/gu,'-').slice(0,60)||'image';
+    const ext=(String(file.name).match(/\\.[A-Za-z0-9]+$/)||['.png'])[0].toLowerCase();
+    const rel='uploads/page-'+String(page).padStart(2,'0')+'/'+stem+'-'+Math.random().toString(16).slice(2,10)+ext;
+    let stored=null;
+    try{
+      if(!review)throw new Error('页面没连上审阅宿主：这个页面必须由宿主打开（DSH 侧栏，或本 Skill 的审阅入口起的本地宿主）');
+      // 空数组＝宿主不支持（capabilities 是"现在真正能用的"），不是"未知"。
+      if(!(review.capabilities||[]).includes('asset-upload'))throw new Error('这个宿主没有声明 asset-upload 能力');
+      await review.upload(file,rel);
+      stored=rel;
+    }catch(error){zone.textContent='上传失败：'+error.message;continue}
+    // path 与 url 都写**同一个**相对基准（审阅目录）：反馈文件的消费者就是这么解析它的。
+    attachments.get(page).push({path:stored,url:stored,alt:file.name.replace(/\\.[^.]+$/,''),caption:''});renderAssets(page);
   }
   zone.innerHTML='拖拽图片到这里，或点击选择<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple data-file="'+page+'">';
   const input=zone.querySelector('input');input.addEventListener('change',()=>uploadFiles(page,[...input.files]));
@@ -303,13 +352,18 @@ function updateProgress(){
   document.getElementById('progressText').textContent = done + '/' + REVIEW.pages.length;
   document.getElementById('saveButton').disabled = done !== REVIEW.pages.length;
   const revisions=[...decisions.values()].filter(value=>value==='revise').length;
-  const undecided=REVIEW.pages.length-done;
-  document.getElementById('saveStatus').textContent = undecided
-    ? undecided+' 页含事实例外，必须明确选择后才能保存。'
+  const undecidedPages=REVIEW.pages.filter(page=>!decisions.has(page.page_number));
+  // 状态行只说这一页现在真的处于什么状态，不把两件事说成一件。
+  document.getElementById('saveStatus').textContent = undecidedPages.length
+    ? undecidedPages.length+' 页必须明确选择后才能保存（'
+      + [undecidedPages.filter(page=>page.requires_fact_decision).length ? '事实例外' : null,
+         undecidedPages.filter(page=>page.requires_recheck).length ? '上一轮要求修改' : null].filter(Boolean).join('、')
+      + '）；其余页面默认通过。'
     : (revisions ? revisions+' 页标记为需要修改。' : '全部页面当前为通过；只需标记有问题的页面。');
 }
-function showCompletion(path){
+function showCompletion(path,note){
   document.getElementById('completionPath').textContent=path||'review-feedback.json';
+  if(note)document.getElementById('completionNote').textContent=note;
   document.getElementById('completion').classList.add('open');
 }
 document.getElementById('copyCompleted').onclick=async()=>{
@@ -318,6 +372,14 @@ document.getElementById('copyCompleted').onclick=async()=>{
 document.getElementById('closeCompletion').onclick=()=>document.getElementById('completion').classList.remove('open');
 async function save(){
   const button = document.getElementById('saveButton');
+  const status = document.getElementById('saveStatus');
+  // 兜底：任何一页没有决定就**不写文件**。宁可不提交，也不替人编一个决定出来。
+  const missing = REVIEW.pages.filter(page => !decisions.has(page.page_number)).map(page => page.page_number);
+  if (missing.length) {
+    status.textContent = '还有 ' + missing.length + ' 页没有决定（' + missing.join('、') + '），先逐页选择再保存。';
+    button.disabled = false;
+    return;
+  }
   button.disabled = true;
   const pageDecisions = REVIEW.pages.map(page => ({
     page_number: page.page_number,
@@ -325,9 +387,15 @@ async function save(){
     ...(page.requires_fact_decision ? {fact_exception_decision: decisions.get(page.page_number) === 'approve' ? 'accept' : 'revise'} : {}),
     feedback_zh: document.querySelector('[data-feedback="' + page.page_number + '"]').value.trim(),
     ...(REVIEW.allowUploads ? {attachments: attachments.get(page.page_number) || []} : {}),
-    ...((page.asset_candidates || []).length ? {asset_decisions: assetDecisions.get(page.page_number) || []} : {}),
+    // 形状与原来一致：只写 {asset_id, status}，不把页面内部的来源标记写进反馈文件。
+    ...((page.asset_candidates || []).length ? {asset_decisions: (assetDecisions.get(page.page_number) || []).map(entry => ({asset_id: entry.asset_id, status: entry.status}))} : {}),
   }));
   const payload = {
+    // R5b：页面知道、但机器看不见的前提要**进数据**。页面读不到 dir 之外的那份稿，
+    // 所以它做不了版本核对 —— 这件事必须跟着提交走，不能只在状态行里说给人听。
+    // （这个字段是**提交文件**的形状，不是本 Skill 的原生记录：收件层会把它摘掉。）
+    pre_check: false,
+    pre_check_note: '页面未做版本核对（当前稿在审阅目录之外，页面读不到）；哈希由 Skill 侧 Validator 复核。',
     contract_version: '1.1.0',
     review_kind: REVIEW.reviewKind,
     source_sha256: REVIEW.sourceSha256,
@@ -336,20 +404,90 @@ async function save(){
     overall_feedback_zh: document.getElementById('overallFeedback').value.trim(),
     decisions: pageDecisions,
   };
-  const status = document.getElementById('saveStatus');
+  // 送达：只有一条路 —— 交给审阅宿主（桥），由它落盘并叫醒模型。
+  // 页面**不自带服务器、不放桥的副本、不硬写任何宿主地址**（R4）：没有桥就说清楚，绝不假装存进去了。
+  // 页面**不做版本核对**（当前稿在 dir 之外，页面读不到），所以状态行不许说"已核对"。
+  // 唤醒分档（R5）：宿主"**接受**了" ≠ "**通知到**了"。无插件宿主回 woke:false
+  // （没有人可唤），这时必须说出来 —— 曾经这里把"已写入"说成"已通知模型"。
+  const honesty = '（页面未做版本核对：当前稿的哈希由 Skill 侧 Validator 复核。）';
+  const wakeTier = (woke) => {
+    if (!woke || woke.error) return {told:false, text:'；没能通知模型（' + ((woke && woke.error) || '宿主没回话') + '）—— 请回对话说一声「已完成」'};
+    if (woke.verified) return {told:true, text:'，宿主已核对：通知进了队列'};
+    if (woke.woke === false) return {told:false, text:'；这个宿主不能唤醒模型（没有插件），请回对话说一声「已完成」'};
+    return {told:false, text:'；宿主接受了这次唤醒，但**没有核对**是否送到 —— 模型没反应就回对话说一声'};
+  };
   try {
-    const response = await fetch('/save-feedback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
-    const result = await response.json();
-    if(!response.ok || !result.ok) throw new Error(result.error || '保存失败');
-    status.textContent = '已保存：' + result.feedback_path;
-    showCompletion(result.feedback_path);
+    if (!review) throw new Error('页面没连上审阅宿主：这个页面必须由宿主打开（DSH 侧栏，或本 Skill 的审阅入口起的本地宿主）');
+    await review.write(payload);
+    let woke = null;
+    try { woke = await review.wake({unit:'整套'}); } catch(wakeError) { woke = {error:wakeError.message}; }
+    const tier = wakeTier(woke);
+    status.textContent = '已交给审阅宿主（' + (review.transport || '未知通道') + '）' + tier.text + honesty;
+    showCompletion('（由审阅宿主落盘）', tier.told
+      ? '反馈已交给审阅宿主，并且核对过：通知已进模型队列。'
+      : '反馈已写入，但**没有**确认送到模型：请返回 Codex 对话发送「已完成」。');
   } catch(error) {
     status.textContent = '保存失败：' + error.message;
     button.disabled = false;
   }
 }
-render();
-updateProgress();
+// 图片：没有宿主时浏览器自己按相对地址取；有宿主（不透明帧里）**必须**由桥代取字节。
+async function hydrateAssets(root){
+  if(!review)return;
+  for(const img of root.querySelectorAll('img[src]')){
+    const rel=img.getAttribute('src')||'';
+    if(!rel||/^(https?:|data:|blob:)/.test(rel))continue;
+    try{const url=await review.asset(rel);if(url)img.src=url}catch(error){/* 取不到就保持原样，不静默改成空白 */}
+  }
+}
+let review=null;
+// capabilities 的含义是「**这个面现在真正能用的**」= 宿主支持 ∩ surface 声明。
+// 所以空数组＝宿主不支持，**不是**"不知道、先摆个控件试试"：没声明就把上传区收起来，
+// 而不是先给人一个点了必然失败的按钮（实测：插件宿主这一格就是空的）。
+function applyUploadCapability(){
+  const can = Array.isArray(review&&review.capabilities) && review.capabilities.indexOf('asset-upload')>=0;
+  document.querySelectorAll('[data-dropzone]').forEach(zone=>{zone.hidden=!can});
+  if(REVIEW.allowUploads&&!can){
+    const state=document.getElementById('saveStatus');
+    if(state)state.textContent='这个宿主没有声明上传能力：本轮只能写意见，不能替换图片。';
+  }
+  return can;
+}
+const BRIDGE_TIMEOUT_MS=1500;   // 握手要有上限：不返回就按"没有桥"降级继续画
+function connectWithTimeout(ms){
+  return new Promise(resolve=>{
+    let done=false;
+    const finish=value=>{if(!done){done=true;resolve(value)}};
+    setTimeout(()=>finish(null),ms);
+    try{ ReviewBridge.connect().then(finish,()=>finish(null)); }catch(error){finish(null)}
+  });
+}
+function sayReadOnly(why){
+  // 这一页只有 saveStatus 这一个说话的地方（没有别家那种 note() 助手）
+  const status=document.getElementById('saveStatus');
+  if(status)status.textContent=why;
+  const note=document.getElementById('message');
+  if(note)note.textContent=why;
+}
+// 桥是**增强**，不是氧气：先用自己的数据把自己画出来，再去握手。
+// （实测过一个不透明源 iframe：顶层读 localStorage 会直接抛 -> 整页脚本当场死、
+//  静态骨架之外什么都不画、零报错。所以这一页连本地存储都走 try/catch，
+//  而且渲染绝不排在 await 后面。）
+(async function boot(){
+  render();
+  updateProgress();
+  try{
+    if(window.ReviewBridge)review=await connectWithTimeout(BRIDGE_TIMEOUT_MS);
+  }catch(error){ review=null; }
+  if(review){
+    applyUploadCapability();
+    await hydrateAssets(document);
+  }else{
+    sayReadOnly(window.ReviewBridge
+      ? '连不上审阅宿主（握手超时）：内容可以看，决定存不进去。'
+      : '这一页没有连上审阅宿主：内容可以看，决定存不进去（请让宿主打开它）。');
+  }
+})();
 </script>
 </body>
 </html>`;

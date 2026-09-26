@@ -1,244 +1,106 @@
+#!/usr/bin/env node
+/**
+ * 事实核查接缝的回归：bypage 侧不做核查，只**翻译**公共件的结论。
+ * 旧审计器（逐数字建账、增量复算、符号不匹配……）已退役并归档，它的机制回归随之退役；
+ * 现在要守的是**接缝**：硬错误传得过来、必须人看的页点得准、审计绑的不是这份稿要拦住。
+ *
+ * 用法：node evals/fact-audit/run.mjs
+ */
 import { createHash } from 'node:crypto';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { assert, jsonOutput, pass, runNode } from '../lib/assert.mjs';
-import { classifyAuditIssues, numericTokens } from '../../scripts/lib/final-fact-audit.mjs';
 
-const root = resolve(import.meta.dirname, '../..');
-const help = jsonOutput(runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--help']));
-assert(help.workflow.join('>') === 'prepare>confirm>resolve>check'
-  && help.modes.resolve.example.includes('--copy')
-  && help.modes.resolve.example.includes('--decisions'), 'CLI help 必须披露完整状态序列和每个模式的参数模板');
-const badResolve = spawnSync(process.execPath, [join(root, 'scripts/audit-final-copy.mjs'), '--mode', 'resolve', '--audit', 'missing.json'], { encoding: 'utf8' });
-const badResolvePayload = JSON.parse(badResolve.stdout.trim());
-assert(badResolve.status !== 0 && badResolvePayload.example.includes('--copy')
-  && badResolvePayload.example.includes('--decisions'), '参数错误必须返回当前模式的完整用法，不让执行者试错');
-const normalized = numericTokens('预算200万元，增长-12.5%，目标40-50%。');
-assert(normalized[0].values[0] === 2_000_000, '万元必须归一');
-assert(normalized[1].values[0] === -12.5, '负数不能被识别为区间');
-assert(normalized[2].values.length === 2, '数字区间必须保留两个端点');
+const root = resolve(import.meta.dirname, '..', '..');
+const seam = join(root, 'scripts/validate-fact-audit.mjs');
+const sha = b => createHash('sha256').update(b).digest('hex');
 
-const temp = mkdtempSync(join(tmpdir(), 'planners-bypage-fact-'));
-const sourceRoot = join(temp, 'source');
-mkdirSync(sourceRoot);
-const researchBytes = Buffer.from('# 研究\n\n2025 年转化率增长 12.5%，样本为 800 人。\n高质量反馈比例从约 50% 提升到 95%，反馈量增长 89%。\n');
-writeFileSync(join(sourceRoot, 'research.md'), researchBytes);
-const sourceIndex = join(temp, 'source-index.json');
-writeFileSync(sourceIndex, JSON.stringify({
-  contract_version: 'source-index/1.1.0', source_root: 'source',
-  sources: [{ source_id: 'src-research', file_path: 'research.md', sha256: createHash('sha256').update(researchBytes).digest('hex'), kind: 'markdown', read_mode: 'full', coverage: '全文', purpose: '事实来源', audit_companion: null }],
-}, null, 2));
-const materials = join(temp, 'materials.json');
-writeFileSync(materials, JSON.stringify({
-  contract_version: 'page-material-packs/1.0.0', architecture_sha256: '0'.repeat(64),
-  packs: [{ page_number: 1, page_job: '展示研究事实', materials: [{ source_id: 'src-research', locator: '研究', excerpt: '2025 年转化率增长 12.5%，样本为 800 人。', relationship: 'supports', used_in: '页面数字' }], asset_ids: [], content_development: ['数据说明'], gaps: [] }],
-}, null, 2));
+const temp = mkdtempSync(join(tmpdir(), 'planners-bypage-seam-'));
 const copy = join(temp, 'bypage.md');
-writeFileSync(copy, `---
-contract_version: 1.0.0
-page_number: 1
-section_id: sec-data
-page_type: data
-page_title: "研究结果"
-main_message: "研究显示转化改善"
----
+writeFileSync(copy, '# 测试稿\n\n样本 120 人，愿意复购 78 人，占比 65%。\n');
+const copyHash = sha(readFileSync(copy));
+const sourceIndex = join(temp, 'source-index.json');
+writeFileSync(sourceIndex, JSON.stringify({ contract_version: 'source-index/2.0.0', source_root: '.', sources: [] }, null, 2));
 
-## Page Content
+const auditWith = (suspects, over = {}) => {
+  const p = join(temp, `audit-${Math.random().toString(36).slice(2)}.json`);
+  writeFileSync(p, JSON.stringify({
+    contract_version: 'fact-audit/1.0.0',
+    artifact: { path: copy, sha256: copyHash },
+    source_index: { path: sourceIndex, index_sha256: null, read_at: null },
+    checker: 'evals/fact-audit/run.mjs',
+    blind_spots: [],
+    suspects,
+    ...over,
+  }, null, 2));
+  return p;
+};
+const seamRun = (audit, extra = []) => jsonOutput(spawnSync(process.execPath, [seam, '--audit', audit, '--copy', copy, ...extra], { encoding: 'utf8' }));
+const suspect = (over) => ({ id: 's1', surface: '占比 65%', kind: 'miscalc', class: 'derived', verdict: 'correct',
+  location: { page: 2, line: 3 }, finding: '78/120=65%，与来源一致', decided_by: 'agent', note: '', ...over });
 
-2025 年转化率增长 12.5%，样本为 800 人。
+// ① 全部核过：放行，不需要人看
+{
+  const r = seamRun(auditWith([suspect({}), suspect({ id: 's2', verdict: 'correct', location: { page: 5 } })]));
+  assert(r.valid && r.reviewable && !r.requires_human_review, `全正确应放行且不需人工：${JSON.stringify(r)}`);
+  assert(r.summary.suspects === 2 && r.summary.correct === 2, 'summary 要报对条数');
+  console.log('  ✓ 全部核过 → 放行、不需人工');
+}
 
-建议首轮预算的 60% 用于验证内容方向。
+// ② 未裁定：接缝必须把公共件的 pending_verdict 传上来并不放行
+{
+  const r = seamRun(auditWith([suspect({ verdict: 'pending', note: '' })]));
+  assert(!r.reviewable && !r.valid, '未裁定不得放行');
+  assert(r.errors.some(e => e.includes('pending_verdict')), `硬错误必须带公共件的错误码：${JSON.stringify(r.errors)}`);
+  console.log('  ✓ 未裁定 → 不放行，且错误码来自公共件');
+}
 
-## Speaker Notes
+// ③ 判为要改（confirmed）：允许人看时要点名那一页；交付时不许放行
+{
+  const audit = auditWith([suspect({ verdict: 'confirmed', note: '改成 65%（78/120）' })]);
+  const withHuman = seamRun(audit, ['--allow-human-review', 'true']);
+  assert(withHuman.valid && withHuman.requires_human_review, '允许人工时应可继续但要点名');
+  assert(withHuman.human_review_required[0].page_number === 2, '点名必须带页码');
+  const delivery = seamRun(audit);
+  assert(!delivery.valid, '交付路径（不许人工）遇到 confirmed 必须拦住');
+  console.log('  ✓ confirmed → 审阅页点名第 2 页；交付路径拦住');
+}
 
-无。
+// ④ 带保留接受：必须人看，且页码来自 location.page
+{
+  const r = seamRun(auditWith([suspect({ verdict: 'accepted_with_caveat', decided_by: 'human', note: '作者同意保留', location: { page: 7 } })]));
+  assert(r.requires_human_review && r.human_review_required[0].page_number === 7, '带保留接受必须在审阅页点名');
+  console.log('  ✓ accepted_with_caveat → 点名第 7 页');
+}
 
-## Production Notes
+// ⑤ 审计绑的不是这份稿
+{
+  const audit = auditWith([], { artifact: { path: copy, sha256: '0'.repeat(64) } });
+  const r = seamRun(audit);
+  assert(!r.reviewable && r.errors.some(e => e.includes('绑定的不是这份稿')), `稿对不上必须拦住：${JSON.stringify(r.errors)}`);
+  console.log('  ✓ 审计绑的不是这份稿 → 拦住');
+}
 
-标明样本口径。
+// ⑥ 契约版本不对
+{
+  const audit = auditWith([], { contract_version: 'fact-audit/0.9.0' });
+  const bad = spawnSync(process.execPath, [seam, '--audit', audit, '--copy', copy], { encoding: 'utf8' });
+  assert(bad.status !== 0, '旧版本契约必须拒掉');
+  console.log('  ✓ 契约版本不对 → 拒掉');
+}
 
-## Sources
+// ⑦ 公共件真的在跑（拿一份未裁定的审计直接跑公共校验器，必须 FAIL）
+{
+  const audit = auditWith([suspect({ verdict: 'pending' })]);
+  const pub = spawnSync(process.execPath, [
+    join(root, 'scripts', 'lib', 'planners-modules.mjs'), '--check',
+  ], { encoding: 'utf8' });
+  assert(pub.stdout.includes('planners-fact-check'), '适配器必须能解析到 planners-fact-check');
+  console.log('  ✓ 适配器解析到 planners-fact-check');
+}
 
-- src-research · 研究
-`);
-const audit = join(temp, 'fact-audit.json');
-const prepared = jsonOutput(runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'prepare', '--copy', copy, '--source-index', sourceIndex, '--materials', materials, '--source-root', sourceRoot, '--audit', audit]));
-assert(prepared.summary.total_numbers === 4, '必须覆盖实际可见的全部数字');
-const stored = JSON.parse(readFileSync(audit, 'utf8'));
-const preparedQueue = JSON.parse(readFileSync(prepared.review_queue, 'utf8'));
-const sourcedQueueItem = preparedQueue.semantic_review_queue.find(fact =>
-  fact.numbers.some(item => item.kind === 'sourced_fact'));
-assert(preparedQueue.contract_version === 'fact-audit-review-queue/1.1.0'
-  && sourcedQueueItem
-  && sourcedQueueItem.independent_attribution_checks.length >= 5
-  && sourcedQueueItem.numbers.some(item => item.kind === 'sourced_fact'
-    && item.selected_source_mapping?.evidence_excerpt), '来源事实必须进入独立归属队列，并逐数字展示机器命中的原文片段');
-const confirmed = jsonOutput(runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'confirm', '--copy', copy, '--audit', audit]));
-const afterConfirm = JSON.parse(readFileSync(audit, 'utf8'));
-const afterConfirmQueue = JSON.parse(readFileSync(prepared.review_queue, 'utf8'));
-assert(confirmed.next.mode === 'resolve'
-  && afterConfirm.facts.some(fact => fact.semantic_status === 'pending'
-    && fact.items.some(item => item.kind === 'sourced_fact'))
-  && afterConfirmQueue.semantic_review_queue.some(fact =>
-    fact.independent_attribution_checks?.length >= 5), 'confirm 只能放行低风险方案数字/编号，不得批量放行来源事实或把它们降级成无检查清单的阻断项');
-const next = jsonOutput(runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--next', '--audit', audit]));
-assert(next.next.mode === 'resolve' && next.next.example.includes('--decisions'), '--next 必须根据当前审计状态给出可直接执行的下一步');
-const decisions = join(temp, 'decisions.json');
-writeFileSync(decisions, JSON.stringify({
-  contract_version: 'fact-audit-decisions/1.0.0',
-  copy_sha256: stored.copy_sha256,
-  decisions: stored.facts.map(fact => ({
-    fact_id: fact.fact_id,
-    status: fact.items.some(item => item.kind === 'planned_value') ? 'qualified' : 'verified',
-    note_zh: '对象、时间、单位、来源和建议性质已经核对。',
-    items: [],
-  })),
-}, null, 2));
-runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'resolve', '--copy', copy, '--audit', audit, '--decisions', decisions]);
-assert(jsonOutput(runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'check', '--copy', copy, '--audit', audit])).valid, '语义决定后必须从真实来源复算通过');
-const unchanged = readFileSync(copy, 'utf8');
-writeFileSync(copy, unchanged.replace('预算的 60%', '预算的 65%'));
-const incremental = jsonOutput(runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'prepare', '--copy', copy, '--source-index', sourceIndex, '--materials', materials, '--source-root', sourceRoot, '--audit', audit]));
-assert(incremental.summary.carried_unchanged >= 1 && incremental.summary.changed === 1, '局部改文案必须只重查变化事实');
-
-const listCopy = join(temp, 'list-bypage.md');
-writeFileSync(listCopy, `---
-contract_version: 1.0.0
-page_number: 1
-section_id: sec-list
-page_type: data
-page_title: "列表中的事实数字"
-main_message: "只把行首序号当编号"
----
-
-## Page Content
-
-1. 调研显示，样本为 800 人。
-2. 高质量反馈比例从约 50% 提升到 95%，反馈量增长 89%。
-
-## Speaker Notes
-
-无。
-
-## Production Notes
-
-无。
-
-## Sources
-
-- src-research
-`);
-const listAudit = join(temp, 'list-audit.json');
-runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'prepare', '--copy', listCopy, '--source-index', sourceIndex, '--materials', materials, '--source-root', sourceRoot, '--audit', listAudit]);
-const listItems = JSON.parse(readFileSync(listAudit, 'utf8')).facts.flatMap(fact => fact.items);
-assert(listItems.find(item => item.raw === '1')?.suggested_kind === 'non_factual'
-  && listItems.find(item => item.raw.includes('800'))?.suggested_kind === 'sourced_fact', '行首列表编号不得让同句后续的真实数字被误判为 non_factual');
-const historicalChangeItems = listItems.filter(item => ['50%', '95%', '89%'].includes(item.raw));
-assert(historicalChangeItems.length === 3
-  && historicalChangeItems.every(item => item.suggested_kind === 'sourced_fact'), '已发生的“从 A 提升到 B”和“增长 C”是来源事实，只有存在目标/建议/计划语气时才能判为 planned_value');
-
-const pdfBytes = Buffer.from('binary-pdf-placeholder');
-writeFileSync(join(sourceRoot, 'report.pdf'), pdfBytes);
-mkdirSync(join(temp, 'audit-sources'));
-const companionBytes = Buffer.from('=== PAGE 1 ===\n报告样本为 1,000 人。\n表格变化为 -1.76。\n');
-writeFileSync(join(temp, 'audit-sources/src-report.txt'), companionBytes);
-writeFileSync(sourceIndex, JSON.stringify({
-  contract_version: 'source-index/1.1.0', source_root: 'source',
-  sources: [{
-    source_id: 'src-report', file_path: 'report.pdf', sha256: createHash('sha256').update(pdfBytes).digest('hex'), kind: 'pdf', read_mode: 'full', coverage: '全文', purpose: 'PDF 事实来源',
-    audit_companion: { file_path: 'audit-sources/src-report.txt', sha256: createHash('sha256').update(companionBytes).digest('hex'), source_sha256: createHash('sha256').update(pdfBytes).digest('hex'), extraction_method: 'fixture-text-layer' },
-  }],
-}, null, 2));
-assert(jsonOutput(runNode(join(root, 'scripts/validate-source-index.mjs'), [sourceIndex])).valid, '二进制来源必须绑定有效机器审计副本');
-const pdfMaterials = join(temp, 'pdf-materials.json');
-writeFileSync(pdfMaterials, JSON.stringify({
-  contract_version: 'page-material-packs/1.0.0', architecture_sha256: '0'.repeat(64),
-  packs: [{ page_number: 1, page_job: '展示 PDF 事实', materials: [{ source_id: 'src-report', locator: 'PDF p1', excerpt: '报告样本为 1,000 人。', relationship: 'supports', used_in: '页面数字' }], asset_ids: [], content_development: ['数据说明'], gaps: [] }],
-}, null, 2));
-const pdfCopy = join(temp, 'pdf-bypage.md');
-writeFileSync(pdfCopy, `---
-contract_version: 1.0.0
-page_number: 1
-section_id: sec-pdf
-page_type: data
-page_title: "PDF 数据"
-main_message: "样本口径"
----
-
-## Page Content
-
-报告样本为 1,000 人。
-
-## Speaker Notes
-
-无。
-
-## Production Notes
-
-无。
-
-## Sources
-
-- src-report · PDF p1
-`);
-const pdfAudit = join(temp, 'pdf-audit.json');
-runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'prepare', '--copy', pdfCopy, '--source-index', sourceIndex, '--materials', pdfMaterials, '--source-root', sourceRoot, '--audit', pdfAudit]);
-const pdfStored = JSON.parse(readFileSync(pdfAudit, 'utf8'));
-const pdfItem = pdfStored.facts.flatMap(fact => fact.items).find(item => item.raw.includes('1,000'));
-assert(pdfItem.source_path === 'report.pdf' && pdfItem.audit_path === 'audit-sources/src-report.txt' && pdfItem.mechanical_status.startsWith('located_'), '审计必须保留原始 PDF 定位，同时自动使用机器审计副本');
-const signMaterials = join(temp, 'sign-materials.json');
-writeFileSync(signMaterials, JSON.stringify({
-  contract_version: 'page-material-packs/1.0.0', architecture_sha256: '0'.repeat(64),
-  packs: [{ page_number: 1, page_job: '展示表格变化', materials: [{ source_id: 'src-report', locator: 'PDF p1', excerpt: '表格变化为 +1.76。', relationship: 'supports', used_in: '页面数字' }], asset_ids: [], content_development: ['表格'], gaps: [] }],
-}, null, 2));
-const signCopy = join(temp, 'sign-bypage.md');
-writeFileSync(signCopy, `---
-contract_version: 1.0.0
-page_number: 1
-section_id: sec-sign
-page_type: data
-page_title: "符号检查"
-main_message: "保留来源符号"
----
-
-## Page Content
-
-表格变化为 +1.76。
-
-## Speaker Notes
-
-无。
-
-## Production Notes
-
-无。
-
-## Sources
-
-- src-report · PDF p1
-`);
-const signAudit = join(temp, 'sign-audit.json');
-runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'prepare', '--copy', signCopy, '--source-index', sourceIndex, '--materials', signMaterials, '--source-root', sourceRoot, '--audit', signAudit]);
-const signItem = JSON.parse(readFileSync(signAudit, 'utf8')).facts.flatMap(fact => fact.items).find(item => item.raw.includes('1.76'));
-assert(signItem.mechanical_status === 'sign_mismatch', '正负号相反必须返回 sign_mismatch，而不是模糊的 not_found 或符号容差');
-const crossFactIssues = classifyAuditIssues({ facts: [
-  {
-    fact_id: 'fact-operands', page_number: 1, claim_text: '基线为 10，比较值为 5。', semantic_status: 'verified', semantic_notes_zh: '', semantic_review_reasons: [],
-    items: [
-      { token_id: 'token-ten', raw: '10', values: [10], kind: 'sourced_fact', suggested_kind: 'sourced_fact', kind_locked: false, source_path: 'report.pdf', mechanical_status: 'located_exact' },
-      { token_id: 'token-five', raw: '5', values: [5], kind: 'sourced_fact', suggested_kind: 'sourced_fact', kind_locked: false, source_path: 'report.pdf', mechanical_status: 'located_exact' },
-    ],
-  },
-  {
-    fact_id: 'fact-result', page_number: 1, claim_text: '因此是 2 倍。', semantic_status: 'verified', semantic_notes_zh: '', semantic_review_reasons: [],
-    items: [{
-      token_id: 'token-two', raw: '2倍', values: [2], kind: 'derived_fact', suggested_kind: 'derived_fact', kind_locked: false, source_path: null, mechanical_status: 'unresolved',
-      derivation: { operands: [10, 5], operand_refs: ['token-ten', 'token-five'], operator: 'divide', displayed_value: 2, comparison: 'equal' },
-      derivation_result: { calculated: 2, valid: true },
-    }],
-  },
-] });
-assert(crossFactIssues.hard_errors.length === 0, '跨句衍生公式必须允许通过精确 operand_refs 追溯，而不是放宽为同页数字碰撞');
-pass('实际使用事实审计与增量恢复');
+rmSync(temp, { recursive: true, force: true });
+pass('事实核查接缝：硬错误、点名页码、稿绑定、契约版本');

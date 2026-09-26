@@ -20,8 +20,15 @@ const research = Buffer.from('# Research\n');
 writeFileSync(join(temp, 'source/research.md'), research);
 const sourceIndex = join(temp, 'source-index.json');
 writeFileSync(sourceIndex, JSON.stringify({
-  contract_version: 'source-index/1.1.0', source_root: '.',
-  sources: [{ source_id: 'src-research', file_path: 'source/research.md', sha256: createHash('sha256').update(research).digest('hex'), kind: 'markdown', read_mode: 'full', coverage: '全文', purpose: '主要内容', audit_companion: null }],
+  contract_version: 'source-index/2.0.0', source_root: '.',
+  sources: [{
+    source_id: 'src-research',
+    origin: { path: 'source/research.md', sha256: createHash('sha256').update(research).digest('hex'), bytes: research.length },
+    kind: 'document', role: '主要内容',
+    audit_layer: { mode: 'source_file', path: null, sha256: null, derived_from_sha256: null, snapshot_sha256: null, method: null, anchor_marks: null },
+    coverage: { status: 'full', scope: null, reason: null, impact_if_incomplete: null, counts: null },
+    anchors: [{ kind: 'section', value: '全文' }], conflicts: [], notes: '',
+  }],
 }, null, 2));
 assert(jsonOutput(runNode(join(root, 'scripts/validate-source-index.mjs'), [sourceIndex])).valid, 'Source Index 必须验证真实文件');
 const image = Buffer.from('asset-bytes');

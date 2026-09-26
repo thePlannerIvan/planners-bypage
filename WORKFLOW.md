@@ -9,6 +9,7 @@
 │   ├── source-index.json
 │   ├── project-memory.md
 │   ├── content-brief.md
+│   ├── copy-style-profile.md        # 本项目的语言基线（提案类稿件用；可选）
 │   ├── page-architecture.json
 │   ├── page-material-packs.json
 │   ├── asset-manifest.json
@@ -20,10 +21,11 @@
 │   │   ├── processed/
 │   │   └── previews/
 │   └── reviews/
-│       ├── storyline/
-│       │   └── history/round-NN.json
-│       └── bypage/
-│           └── history/round-NN.json
+│       ├── storyline/                 # 审阅面：index.html + review-surface.json
+│       │   ├── review-submissions.json   # 宿主原样落盘的提交（收件的输入）
+│       │   ├── review-feedback.json      # 本 Skill 的形状：最新一轮（agent 与 Validator 读它）
+│       │   └── history/round-NN.json     # 只追加，永不覆盖
+│       └── bypage/                    # 同上（另有 review_host.json / wake-log.jsonl，宿主自己的产物）
 └── deliverable/
     ├── by-page.md
     └── assets/
@@ -65,7 +67,7 @@
 - Material Pack 只收集实际页面需要的材料，不建立全库 Evidence Ledger。
 - Asset Manifest 是唯一图片状态接口；Review 上传必须回写它。
 - 事实审计只扫描终稿实际展示或说出的事实；人工定位保留原文件，机器定位自动读取绑定的审计副本。
-- `review-feedback.json` 是当前最新反馈；`reviews/<kind>/history/round-NN.json` 是不可覆盖的审阅轮次历史。
+- 审阅页由**审阅宿主**打开（有插件时 DSH 侧栏，没有时模组的本地宿主）；页面提交落 `review-submissions.json`，`scripts/review-inbox.mjs` 收件后翻译成 `review-feedback.json` 并只追加 `reviews/<kind>/history/round-NN.json`。
 
 ## 运行后学习
 

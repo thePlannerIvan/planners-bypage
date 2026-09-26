@@ -87,6 +87,21 @@ deliverable/
 
 过程目录 `.bypage-work/` 保留 Source Index、Page Material Packs、Asset Manifest、审阅反馈和事实审计记录，但不应随一般公开仓库提交。
 
+## 目录结构
+
+```text
+planners-bypage/
+├── SKILL.md
+├── WORKFLOW.md
+├── agents/openai.yaml
+├── contracts/           # 页面架构、材料包、资产清单契约
+├── evals/               # 结构 / 审阅 / 图片 / 事实核查 / 交付五套公开测试
+├── references/          # 逐页写作、图片生命周期、来源阅读、提案语言
+├── scripts/             # 校验器、审阅接缝、资产导入与终稿装配
+├── stages/              # 01–08 分阶段工作流
+└── templates/           # source-index / page-architecture / asset-manifest / by-page
+```
+
 ## 可靠性边界
 
 - Source Index 保留原文件与机器审计副本的 Hash 绑定；
@@ -113,6 +128,8 @@ npm test
 对于 1.0 时尚未完成的项目，不要混用旧反馈或手工改版本号；请从来源登记阶段重建 Source Index，并重新生成 Asset Manifest 和两轮审阅 Contract。
 
 ## 从 1.1 升级到 1.2
+
+> **本节是历史记录。** 1.2 那套审计器（`audit-final-copy.mjs` 四态流程）已于 2026-09-26 退役，事实核查改由公共件 `planners-fact-check` 承担 —— 见 `CHANGELOG.md`。
 
 1.2 把事实审计从“机械命中后批量确认”改为“来源反推的独立归属核对”：所有来源/衍生事实都进入 Review Queue，每个数字展示命中的原文片段，并强制检查主体、指标、时间、单位、限定词和符号。`confirm` 只处理方案数字和非事实编号。
 

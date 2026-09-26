@@ -13,7 +13,17 @@ const png = Buffer.from('handoff-image');
 writeFileSync(join(temp, 'work/assets/original/image.png'), png);
 writeFileSync(join(temp, 'work/assets/processed-image.png'), png);
 const sourceIndex = join(temp, 'work/source-index.json');
-writeFileSync(sourceIndex, JSON.stringify({ contract_version: 'source-index/1.1.0', source_root: '../source', sources: [{ source_id: 'src-doc', file_path: 'doc.md', sha256: createHash('sha256').update(sourceBytes).digest('hex'), kind: 'markdown', read_mode: 'full', coverage: '全文', purpose: '主要内容', audit_companion: null }] }, null, 2));
+writeFileSync(sourceIndex, JSON.stringify({
+  contract_version: 'source-index/2.0.0', source_root: '../source',
+  sources: [{
+    source_id: 'src-doc',
+    origin: { path: 'doc.md', sha256: createHash('sha256').update(sourceBytes).digest('hex'), bytes: sourceBytes.length },
+    kind: 'document', role: '主要内容',
+    audit_layer: { mode: 'source_file', path: null, sha256: null, derived_from_sha256: null, snapshot_sha256: null, method: null, anchor_marks: null },
+    coverage: { status: 'full', scope: null, reason: null, impact_if_incomplete: null, counts: null },
+    anchors: [{ kind: 'section', value: '全文' }], conflicts: [], notes: '',
+  }],
+}, null, 2));
 const materials = join(temp, 'work/materials.json');
 writeFileSync(materials, JSON.stringify({ contract_version: 'page-material-packs/1.0.0', architecture_sha256: '0'.repeat(64), packs: [{ page_number: 1, page_job: '说明内容', materials: [{ source_id: 'src-doc', locator: '全文', excerpt: '完整内容', relationship: 'supports', used_in: '正文' }], asset_ids: ['asset-image'], content_development: ['图文'], gaps: [] }] }, null, 2));
 const manifest = join(temp, 'work/asset-manifest.json');
@@ -47,9 +57,17 @@ main_message: "完整内容可以直接进入下一步"
 - src-doc
 `);
 const audit = join(temp, 'work/fact-audit.json');
-runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'prepare', '--copy', copy, '--source-index', sourceIndex, '--materials', materials, '--source-root', join(temp, 'source'), '--audit', audit]);
-runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'confirm', '--copy', copy, '--audit', audit]);
-assert(jsonOutput(runNode(join(root, 'scripts/audit-final-copy.mjs'), ['--mode', 'check', '--copy', copy, '--audit', audit])).valid, '无数字页面也必须形成有效审计');
+// 新流程：fact-audit.json 由 planners-fact-check 产出（这一份是"全部核过、无疑点"）
+writeFileSync(audit, JSON.stringify({
+  contract_version: 'fact-audit/1.0.0',
+  artifact: { path: copy, sha256: createHash('sha256').update(readFileSync(copy)).digest('hex') },
+  source_index: { path: sourceIndex, index_sha256: null, read_at: null },
+  checker: 'evals/handoff/run.mjs',
+  checked_at: new Date().toISOString(),
+  blind_spots: [],
+  suspects: [],
+}, null, 2));
+assert(jsonOutput(runNode(join(root, 'scripts/validate-fact-audit.mjs'), ['--audit', audit, '--copy', copy])).valid, '无数字页面也必须形成有效审计');
 const auditRaw = readFileSync(audit, 'utf8');
 const feedback = join(temp, 'work/review-feedback.json');
 writeFileSync(feedback, JSON.stringify({

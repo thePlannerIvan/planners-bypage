@@ -6,7 +6,11 @@
 
 ## 工作方式
 
-完整读取 `references/bypage-writing.md`。按章节写作，但不要求逐章确认。每页先明确受众看完后应理解什么，再选择段落、列表、表格、图表、图片、流程、案例或模型等合适形式。
+完整读取 `references/bypage-writing.md`。**当这份稿是提案**（上游来自 `planners-proposal-system`，或受众是客户决策者）时，同时读取 `references/proposal-language.md` —— 提案页不是缩短的分析文章，是能被扫读、讲述和制作的论证单元。
+
+语言基线：项目若已有 `.bypage-work/copy-style-profile.md`（本 Skill 起于 `templates/copy-style-profile.md`，或上游 proposal 随交接带过来），按它写；一次性改句不写进档案，连续复现的语言偏好才写。
+
+按章节写作，但不要求逐章确认。每页先明确受众看完后应理解什么，再选择段落、列表、表格、图表、图片、流程、案例或模型等合适形式。
 
 必须保留：
 

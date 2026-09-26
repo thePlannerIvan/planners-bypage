@@ -22,11 +22,14 @@
 
 使用对应 PDF、Word、PPT、Spreadsheet 和图像能力完成真实读取与提取。脚本只负责清单、Hash、机器审计文本、尺寸、重复和格式状态。完整读取 `references/source-reading.md`；有图片时同时读取 `references/image-lifecycle.md`。
 
-从 `templates/source-index.json`和`templates/asset-manifest.json`开始；机器接口分别由 `contracts/source-index.schema.json`与`contracts/asset-manifest.schema.json`定义。写入 `.bypage-work/source-index.json`、`project-memory.md`与`asset-manifest.json`。先运行审计源预处理，再运行 Validator：
+从 `templates/source-index.json` 和 `templates/asset-manifest.json` 开始。**来源索引的契约不在本 Skill 里** —— 它的字段与校验规则都在公共模组 `planners-source-index`（`contracts/source-index.schema.json`，`source-index/2.0.0`）；`asset-manifest` 仍是本 Skill 自己的契约（`contracts/asset-manifest.schema.json`）。写入 `.bypage-work/source-index.json`、`project-memory.md`与`asset-manifest.json`。先运行审计源预处理，再运行 Validator：
 
 ```bash
 node "<Skill>/scripts/prepare-audit-sources.mjs" --source-index "<project>/.bypage-work/source-index.json"
 node "<Skill>/scripts/validate-source-index.mjs" "<project>/.bypage-work/source-index.json"
+```
+
+> 这个脚本是**薄壳**：它按名字找到公共模组再把校验转过去。规则不在这里 —— 要改校验规则，改 `planners-source-index`，不要改本 Skill。
 node "<Skill>/scripts/validate-asset-manifest.mjs" "<project>/.bypage-work/asset-manifest.json"
 ```
 

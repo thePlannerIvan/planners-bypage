@@ -5,6 +5,7 @@ import { basename, dirname, relative, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { renderPageReviewHtml } from './review/page-review-html.mjs';
+import { pageDefaults, readPriorRound, seedAssetDecisions } from './lib/prior-round.mjs';
 
 function argsOf(argv) { const out = {}; for (let i = 0; i < argv.length; i += 2) out[argv[i]] = argv[i + 1]; return out; }
 function clean(value) { return String(value ?? '').trim().replace(/^["']|["']$/g, ''); }
@@ -18,10 +19,13 @@ function section(body, name, nextName = null) {
   return body.match(new RegExp('##\\s*' + name + '\\s*\\n([\\s\\S]*?)' + end, 'i'))?.[1]?.trim() ?? '';
 }
 const args = argsOf(process.argv.slice(2));
-if (!args['--copy'] || !args['--output']) throw new Error('用法：build-bypage-review.mjs --copy <bypage-draft.md> --output <review/index.html> [--audit fact-audit.json] [--assets asset-manifest.json] [--kind sample|final]');
+if (!args['--copy'] || !args['--output']) throw new Error('用法：build-bypage-review.mjs --copy <bypage-draft.md> --output <review/index.html> [--audit fact-audit.json] [--assets asset-manifest.json] [--kind sample|final] [--previous review-feedback.json]');
 const copyPath = resolve(args['--copy']);
 const outputPath = resolve(args['--output']);
 const kind = args['--kind'] || 'final';
+const reviewKind = kind === 'sample' ? 'bypage_sample' : 'bypage';
+// 上一轮**人**做过的决定（只在同一个面之间带）。读不到＝第一轮，行为与原来完全一致。
+const priorRound = readPriorRound(args['--previous'] ? resolve(args['--previous']) : null, reviewKind);
 if (kind === 'final' && !args['--assets']) throw new Error('完整 By-page 终审必须提供 --assets，并通过图片视觉检查门禁');
 const copyRaw = readFileSync(copyPath, 'utf8');
 const validation = spawnSync(process.execPath, [resolve(dirname(fileURLToPath(import.meta.url)), 'validate-bypage.mjs'), copyPath], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
@@ -48,7 +52,12 @@ if (args['--audit']) {
 }
 const sourceSha256 = createHash('sha256').update(copyRaw).update('\n---FACT-AUDIT---\n').update(auditRaw).digest('hex');
 const auditByPage = new Map();
-for (const fact of audit.facts || []) auditByPage.set(Number(fact.page_number), [...(auditByPage.get(Number(fact.page_number)) || []), fact]);
+// fact-audit/1.0.0 的疑点清单带 location.page；按页归组给审阅页展示
+for (const suspect of audit.suspects || []) {
+  const page = Number(suspect.location?.page);
+  if (!Number.isInteger(page)) continue;
+  auditByPage.set(page, [...(auditByPage.get(page) || []), suspect]);
+}
 const exceptionsByPage = new Map();
 for (const item of factExceptions) exceptionsByPage.set(Number(item.page_number), [...(exceptionsByPage.get(Number(item.page_number)) || []), item]);
 const reviewAssetDir = resolve(dirname(outputPath), 'assets');
@@ -78,6 +87,8 @@ const pages = splitPages(copyRaw).map(({ frontmatter, body }) => {
     claim: scalar(frontmatter, 'main_message'),
     requires_fact_decision: exceptions.length > 0,
     fact_exceptions: exceptions,
+    // 上一轮人做过的决定 → 这一页本轮要不要人重新明确选择（以及只读上下文）。
+    ...pageDefaults(priorRound?.byPage.get(pageNumber), exceptions.length > 0),
     meta: [
       { label: '页面类型', value: scalar(frontmatter, 'page_type') },
       { label: '所属章节', value: scalar(frontmatter, 'section_id') },
@@ -95,15 +106,25 @@ const pages = splitPages(copyRaw).map(({ frontmatter, body }) => {
     ],
   };
 });
+const recheckPages = pages.filter(page => page.requires_recheck);
 const html = renderPageReviewHtml({
-  reviewKind: kind === 'sample' ? 'bypage_sample' : 'bypage',
+  reviewKind,
   title: kind === 'sample' ? '代表性样页校准' : '完整 By-page 图文审阅',
   subtitle: '请逐页检查 ' + pages.length + ' 页的标题、主要信息、完整主体、表格、图表说明和图片。',
   sourceSha256,
   pages,
-  notice: factExceptions.length ? '普通页面默认通过；含事实例外的页面必须明确接受或退回修改。' : '全部页面默认通过。输入任何反馈后，本页自动切换为需要修改。',
+  notice: reviewNotice(pages, factExceptions.length > 0, recheckPages.length),
   allowUploads: kind === 'final',
 });
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, html);
-process.stdout.write(JSON.stringify({ valid: true, kind, pages: pages.length, source_sha256: sourceSha256, output: outputPath }) + '\n');
+process.stdout.write(JSON.stringify({ valid: true, kind, pages: pages.length, source_sha256: sourceSha256, output: outputPath, recheck_pages: recheckPages.map(page => page.page_number) }) + '\n');
+
+/** 提示语只说自己真的知道的事：默认通过的页、必须人明确决定的页（事实例外 / 上一轮要求修改）。 */
+function reviewNotice(pages, hasFactExceptions, recheckCount) {
+  if (!hasFactExceptions && !recheckCount) return '全部页面默认通过。输入任何反馈后，本页自动切换为需要修改。';
+  const parts = [];
+  if (hasFactExceptions) parts.push('含事实例外的页面必须明确接受或退回修改');
+  if (recheckCount) parts.push('上一轮你标了「需要修改」的 ' + recheckCount + ' 页必须复核后明确选择（点一下通过即可，不用先清空任何东西）');
+  return '普通页面默认通过；' + parts.join('；') + '。';
+}

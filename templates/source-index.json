@@ -1,19 +1,42 @@
 {
-  "contract_version": "source-index/1.1.0",
+  "contract_version": "source-index/2.0.0",
   "source_root": "../source",
+  "index_sha256": null,
   "sources": [
     {
       "source_id": "src-example",
-      "file_path": "example.md",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "kind": "markdown",
-      "read_mode": "full",
-      "coverage": "全文",
-      "purpose": "说明这份材料在项目中的作用",
-      "locators": ["关键章节或页码"],
+      "origin": {
+        "path": "example.md",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "bytes": 0
+      },
+      "kind": "document",
+      "role": "说明这份材料在项目中的作用",
+      "audit_layer": {
+        "mode": "source_file",
+        "path": null,
+        "sha256": null,
+        "derived_from_sha256": null,
+        "snapshot_sha256": null,
+        "method": null,
+        "anchor_marks": null
+      },
+      "coverage": {
+        "status": "full",
+        "scope": null,
+        "reason": null,
+        "impact_if_incomplete": null,
+        "counts": null
+      },
+      "anchors": [
+        {
+          "kind": "section",
+          "value": "关键章节或页码"
+        }
+      ],
       "conflicts": [],
-      "impact_if_incomplete": "",
-      "audit_companion": null
+      "notes": ""
     }
-  ]
+  ],
+  "blind_spots": []
 }

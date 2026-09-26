@@ -1,6 +1,6 @@
 ---
 name: planners-bypage
-description: 把一份或多份 Word、PDF、Markdown、PPT、表格和图片资料可靠地整理成经过 Storyline 与逐页审阅的 PPT by-page 内容稿和图片资产。适用于用户要先筛选多源材料、确认叙事结构、逐页回查来源、保留或处理原图、核对最终使用的数字事实，再把 by-page.md 与 assets 交给 planners-ppt-hell 制作可编辑 PPT 的任务。
+description: 把一份或多份 Word、PDF、Markdown、PPT、表格和图片资料可靠地整理成经过 Storyline 与逐页审阅的 PPT by-page 内容稿和图片资产。适用于用户要先筛选多源材料、确认叙事结构、逐页回查来源、保留或处理原图、核对最终使用的数字事实，再把 by-page.md 与 assets 交给 planners-ppt-hell 制作可编辑 PPT 的任务。它同时是**提案逐页文案的产线**：`planners-proposal-system` 交出已批准的 Page Architecture 之后，逐页文案、语言、事实核查与终稿都由本 Skill 完成。
 ---
 
 # Planners Bypage
@@ -23,7 +23,7 @@ description: 把一份或多份 Word、PDF、Markdown、PPT、表格和图片资
 → $planners-ppt-hell
 ```
 
-允许重组、压缩和改写，但不得改变事实、数字、限定条件，或添加材料无法支持的结论。模型负责理解、取舍、组织、回源判断和写作；脚本负责格式、Hash、二进制材料的审计副本、版本绑定、事实复算、图片状态和审阅保存。
+允许重组、压缩和改写，但不得改变事实、数字、限定条件，或添加材料无法支持的结论。模型负责理解、取舍、组织、回源判断和写作；脚本负责格式、Hash、二进制材料的审计副本、版本绑定、图片状态和审阅保存。**事实核查不在本 Skill 内实现** —— 交给公共件 `planners-fact-check`（独立 Skill，子代理在干净上下文里跑），本 Skill 只保留一条接缝，把结论翻成「硬错误」与「必须人看的页」。**来源索引的契约与校验**同样在公共件 `planners-source-index`（`source-index/2.0.0`）。
 
 ## 启动与恢复
 
@@ -41,8 +41,9 @@ description: 把一份或多份 Word、PDF、Markdown、PPT、表格和图片资
 - 图片默认保守处理；特定图片确有需要时才增强，且永不覆盖原图。
 - 采用或备用的处理图必须完成内容视觉检查；只检查尺寸、像素或坐标不能代替确认“裁到的是目标图”。
 - 事实归属必须从 Review Queue 的原文片段反向核对；不得用批量 `confirm` 放行来源事实。
-- Storyline 和 By-page 反馈按 `history/round-NN.json` 追加留档，同时保留 `review-feedback.json` 作为当前最新版。
+- 两个审阅面走同一条公共缝（`planners-review-core`）：宿主落盘 `review-submissions.json`，`scripts/review-inbox.mjs` 收件后翻译成 `review-feedback.json`（最新版）并**只追加** `history/round-NN.json`；Host 生命周期不在本 Skill 里，`--surface-only` 交给有插件宿主。
 - 本 Skill 不决定 `contain|cover`、最终裁剪比例、裁剪锚点、图片槽位或模板关系；这些属于 `$planners-ppt-hell`。
+- **提案语言与风格档案归本 Skill**（2026-09-26 从 `planners-proposal-system` 并入）：`references/proposal-language.md` 是提案页的语言规范，提案类稿件在写作阶段读它；`templates/copy-style-profile.md` 是本项目的语言基线档案，需要固定语言时从它起一份 `.bypage-work/copy-style-profile.md`（上游 proposal 若已建立基线，随交接带过来）。
 - 不创建 Method Wiki，不运行品牌策略方向循环，不读取旧 Proposal System 的 `_internal/`。
 
 ## 完成

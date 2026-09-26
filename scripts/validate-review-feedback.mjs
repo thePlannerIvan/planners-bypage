@@ -2,7 +2,8 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { buildAudit, classifyAuditIssues } from './lib/final-fact-audit.mjs';
+import { spawnSync } from 'node:child_process';
+import { moduleScript } from './lib/planners-modules.mjs';
 
 function argsOf(argv) {
   const out = {};
@@ -28,19 +29,21 @@ try {
   if (args['--audit']) {
     const auditPath = resolve(args['--audit']);
     auditRaw = readFileSync(auditPath, 'utf8');
-    const storedAudit = JSON.parse(auditRaw);
-    const currentAudit = buildAudit({
-      copyPath: resolve(args['--copy']),
-      sourceIndexPath: resolve(storedAudit.source_index_path),
-      materialsPath: resolve(storedAudit.materials_path),
-      sourceRoot: resolve(storedAudit.source_root),
-      previousAuditPath: auditPath,
-    });
-    const issues = classifyAuditIssues(currentAudit);
-    if (issues.hard_errors.length) {
-      throw new Error(`事实审计仍有硬错误：${issues.hard_errors.join('；')}`);
+    const audit = JSON.parse(auditRaw);
+    if (audit.contract_version !== 'fact-audit/1.0.0') throw new Error('fact-audit.json 必须为 fact-audit/1.0.0');
+    const gate = spawnSync(process.execPath, [
+      moduleScript('planners-fact-check', 'scripts/validate-fact-audit.mjs'), auditPath, '--gate',
+    ], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+    let checked;
+    try { checked = JSON.parse(gate.stdout); } catch { throw new Error(`事实核查校验器没有返回 JSON：${(gate.stderr || '').slice(0, 200)}`); }
+    if ((checked.errors || []).length) {
+      throw new Error(`事实审计仍有硬错误：${checked.errors.map(e => e.message).join('；')}`);
     }
-    factExceptionPages = new Set(issues.human_review_required.map(item => Number(item.page_number)));
+    // 必须人看的页：判为要改（confirmed）与带保留接受（accepted_with_caveat）
+    factExceptionPages = new Set((audit.suspects || [])
+      .filter(s => s.verdict === 'confirmed' || s.verdict === 'accepted_with_caveat')
+      .map(s => Number(s.location?.page))
+      .filter(Number.isInteger));
   }
 } catch (error) {
   process.stdout.write(`${JSON.stringify({ valid: false, error: error.message })}\n`);
