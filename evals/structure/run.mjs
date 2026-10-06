@@ -11,6 +11,12 @@ assert(skill.includes('name: planners-bypage'), 'frontmatter 必须使用 planne
 assert(skill.includes('$planners-ppt-hell'), '必须明确交给下游 PPT Skill');
 assert(!skill.includes('proposal-library-maintenance/'), 'Active 入口不得保留 Method Wiki 路由');
 assert(readFileSync(join(root, 'WORKFLOW.md'), 'utf8').includes('一轮集中选择'), '必须是一轮集中决策');
+const workflow = readFileSync(join(root, 'WORKFLOW.md'), 'utf8');
+const development = readFileSync(join(root, 'stages/03-storyline-architecture.md'), 'utf8');
+const delivery = readFileSync(join(root, 'stages/08-delivery-handoff.md'), 'utf8');
+assert(workflow.includes('PPT Hell 资料适配') && workflow.includes('Proposal 交接不是独立运行的前置条件'), 'PPT Hell 资料路径必须独立于 Proposal 交接');
+assert(development.includes('从资料和 Content Brief 提炼关键判断') && development.includes('独立结构进入 Stage 04 审阅'), '独立入口必须形成并审阅工作结构');
+assert(delivery.includes('交回调用方') && delivery.includes('不重新发起一次 Skill 调用'), 'PPT Hell 调用完成后必须回交原流程');
 assert(jsonOutput(runNode(join(root, 'scripts/validate-page-architecture.mjs'), [join(root, 'templates/page-architecture.json')])).valid, '页面架构模板必须通过');
 assert(jsonOutput(runNode(join(root, 'scripts/validate-bypage.mjs'), [join(root, 'templates/by-page.md')])).valid, 'By-page 模板必须通过');
 

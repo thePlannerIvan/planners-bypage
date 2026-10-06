@@ -2,7 +2,7 @@
 
 ## Purpose and overview
 
-Planners Bypage owns the realization of research or proposal judgments. It turns an approved Storyline, or a working Storyline formed in its standalone path, into complete page content that can be handed to PPT production.
+Planners Bypage owns the realization of research or proposal judgments. It turns an approved Storyline, a working Storyline formed from supplied materials, or a non-PPT material package received from PPT Hell into complete page content that can be handed to PPT production.
 
 ## Modules
 
@@ -17,13 +17,14 @@ Planners Bypage owns the realization of research or proposal judgments. It turns
 ## Entry paths
 
 - Proposal handoff: consume the approved upstream Storyline and structure reference, then begin content realization.
+- PPT Hell material intake: receive a non-PPT source package when PPT Hell needs content understanding before visual production; form the working structure here and return the completed By-page.
 - Standalone: form a working structure from the supplied materials when no upstream Storyline exists.
 
-The two paths share the same content realization and delivery responsibility after the structure is understood.
+The three paths share the same content realization and delivery responsibility after the structure is understood.
 
 ## Seams
 
-Proposal hands over its preserved memory, source index, Storyline, structure contract and feedback. By-page hands over complete page content and assets to `$planners-ppt-hell`. If content research reveals that the core Storyline must change, return to Proposal rather than silently changing it here.
+Proposal hands over its preserved memory, source index, Storyline, structure contract and feedback. PPT Hell hands over the non-PPT source package when it needs content work before visual production. By-page hands over complete page content and assets to `$planners-ppt-hell`. If content research reveals that the core Storyline must change, return to Proposal on the Proposal path; otherwise return to Stage 02 and ask the user before changing the working structure.
 
 ## Scope boundary
 

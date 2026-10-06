@@ -1,6 +1,6 @@
 ---
 name: planners-bypage
-description: 把一份或多份 Word、PDF、Markdown、PPT、表格和图片资料，或上游已经确认的 Storyline，展开成完整、可制作、可追溯的 PPT by-page 内容稿和图片资产。适用于用户要把研究判断落成逐页内容、回查来源、必要时补充资料、保留或处理原图、核对最终使用的事实，再把 by-page.md 与 assets 交给 planners-ppt-hell 制作可编辑 PPT 的任务。上游来自 `planners-proposal-system` 时，本 Skill 保留并使用其已批准的工作记忆、Storyline、结构契约和审阅反馈，不静默重建或改写方向。
+description: 把一份或多份 Word、PDF、Markdown、PPT、表格和图片资料，或上游已经确认的 Storyline，展开成完整、可制作、可追溯的 PPT by-page 内容稿和图片资产。适用于用户要把研究判断落成逐页内容、回查来源、必要时补充资料、保留或处理原图、核对最终使用的事实，再把 by-page.md 与 assets 交给 planners-ppt-hell 制作可编辑 PPT 的任务；也可被 planners-ppt-hell 调用，把非 PPT 资料包先整理成内容稿。上游来自 `planners-proposal-system` 时，本 Skill 保留并使用其已批准的工作记忆、Storyline、结构契约和审阅反馈，不静默重建或改写方向。
 ---
 
 # Planners Bypage
@@ -9,7 +9,7 @@ description: 把一份或多份 Word、PDF、Markdown、PPT、表格和图片资
 
 ## 目的与全景
 
-把研究判断或已确认的 Storyline 展开成可靠、可制作、可追溯的逐页 PPT 内容包；本 Skill 不设计或导出 PPTX，但对内容是否已经充分落地负责。
+把研究判断、已确认的 Storyline，或非 PPT 资料包展开成可靠、可制作、可追溯的逐页 PPT 内容包；本 Skill 不设计或导出 PPTX，但对内容是否已经充分落地负责。
 
 八步，每步的主要产物写在下表（**完成标准在各 `stages/` 文件里，本页不复述**）：
 
@@ -24,7 +24,7 @@ description: 把一份或多份 Word、PDF、Markdown、PPT、表格和图片资
 | 7 | 实际使用事实审计 + 图文终审 | `fact-audit`（公共件）+ 终审反馈 | 有未裁定疑点 |
 | 8 | 交付 | `deliverable/by-page.md` + `deliverable/assets/` | `assets/` 与正文实际使用不一致 |
 
-交付后由用户或本 Skill 提示改用 `$planners-ppt-hell`。
+交付后的续接方式见 `stages/08-delivery-handoff.md`：用户直接调用时提示制作 PPT；PPT Hell 调用时交回原制作流程。
 
 允许重组、压缩和改写，但不得改变事实、数字、限定条件，或添加材料无法支持的结论。模型负责理解、取舍、组织、回源判断和写作；脚本负责格式、Hash、二进制材料的审计副本、版本绑定、图片状态和审阅保存。**事实核查不在本 Skill 内实现** —— 交给公共件 `planners-fact-check`（独立 Skill，子代理在干净上下文里跑），本 Skill 只保留一条接缝，把结论翻成「硬错误」与「必须人看的页」。**来源索引的契约与校验**同样在公共件 `planners-source-index`（`source-index/2.0.0`）。
 
@@ -34,12 +34,13 @@ description: 把一份或多份 Word、PDF、Markdown、PPT、表格和图片资
 2. 根据项目证据进入最早缺失阶段；不要因为文件存在而假定人工批准。
 3. 每次只完整读取当前 `stages/`文件及其明确要求的 Reference。
 4. 材料已经回答的问题不得重新询问用户。
-5. 用户需要直接制作 PPTX 时，先完成或确认 By-page 内容，再提示调用 `$planners-ppt-hell`；不要在本 Skill 内开始模板、Layout、SVG 或 PPTX 制作。
+5. 用户需要直接制作 PPTX 时，先完成或确认 By-page 内容，再按 Stage 08 交接；不要在本 Skill 内开始模板、Layout、SVG 或 PPTX 制作。
 
 ## 核心边界
 
 - 完整 `source-index.json`、上游交接文件、页面材料包和实际使用事实审计必须保留。
 - Proposal 已批准 Storyline 时不重复进行 Storyline Review；独立运行时才使用本 Skill 的结构审阅。
+- 没有 Proposal 交接时，仍可从资料包独立形成工作结构；被 PPT Hell 调用与用户直接调用共用这条独立路径。
 - By-page Review 是完整内容的人工决定面；普通项目不增加样页门禁。
 - Storyline Review 每页展示模型推荐的 1–3 张候选图片，其他候选折叠。
 - 图片默认保守处理；特定图片确有需要时才增强，且永不覆盖原图。
@@ -52,7 +53,7 @@ description: 把一份或多份 Word、PDF、Markdown、PPT、表格和图片资
 
 ## 完成
 
-只有当前 By-page、事实审计和终审反馈绑定同一版本且整体批准，才生成交付物。完成后明确告诉用户：
+只有当前 By-page、事实审计和终审反馈绑定同一版本且整体批准，才生成交付物。用户直接调用时提示：
 
 > 逐页内容与图片资产已经准备完成。下一步请使用 `$planners-ppt-hell`，把 `deliverable/by-page.md` 制作为可编辑 PowerPoint。
 

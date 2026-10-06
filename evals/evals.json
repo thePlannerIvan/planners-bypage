@@ -18,6 +18,14 @@
       "must_not_do": ["为了填页强行扩写", "把 Validator 当作内容策划者"]
     },
     {
+      "id": "ppt-hell-material-intake",
+      "prompt": "PPT Hell 收到一批不是 PPT 的研究资料，需要先把它整理成可以制作 PPT 的完整 By-page。没有 Proposal 交接文件时，请从资料开始处理，并在完成后把内容稿和图片资产交回 PPT Hell。",
+      "route_expected": "system",
+      "expected_behavior_change": "Bypage 能作为 PPT Hell 的内容前置适配器独立运行，而不是要求先补一套 Proposal 交接。",
+      "must_do": ["从资料建立工作结构", "展开完整页面内容", "交回 by-page.md 与 assets"],
+      "must_not_do": ["要求 Proposal 文件作为前置条件", "在 By-page 内开始模板或 PPTX 制作"]
+    },
+    {
       "id": "vans-baseline",
       "prompt": "根据 Vans 已确认的 Storyline 和研究资料，重新完成逐页内容，并与已有草稿对比。",
       "route_expected": "system",

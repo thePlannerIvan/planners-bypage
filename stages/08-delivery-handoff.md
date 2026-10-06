@@ -25,11 +25,13 @@ node "<Skill>/scripts/build-reviewed-copy.mjs" +  --copy "<project>/.bypage-work
 
 ## 下游提示
 
-明确告诉用户：
+用户直接调用时，明确告诉用户：
 
 > 逐页内容与图片资产已经准备完成。下一步请使用 `$planners-ppt-hell`，把 `deliverable/by-page.md` 制作为可编辑 PowerPoint。
 
 若未安装，提供 GitHub 安装命令；本 Skill 不自行进入模板、Layout、SVG 或 PPTX 导出。
+
+若本 Skill 由 `$planners-ppt-hell` 调用，则把同一份 `deliverable/by-page.md` 与 `deliverable/assets/` 交回调用方，由 PPT Hell 继续内容底稿适配和视觉制作，不重新发起一次 Skill 调用。
 
 ## 完成标准
 
