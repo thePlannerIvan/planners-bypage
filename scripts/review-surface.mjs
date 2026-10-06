@@ -98,11 +98,11 @@ export function surfaceDocument(reviewDir, { surface = 'bypage', title, descript
     dir: '.',
     entry: 'index.html',
     feedback: SUBMISSIONS_REL,
+    draft: existsSync(join(reviewDir,'review-context.json')) ? JSON.parse(readFileSync(join(reviewDir,'review-context.json'),'utf8')).draftPath || 'draft.json' : 'draft.json',
     wake: { mode: 'queue', text: spec.wake },
     // 页面要往审阅目录里上传替换图片（宿主必须做包含性校验）。声明为空就是为空。
-    capabilities: ['asset-upload'],
-    // 不声明 watch：本面的页面是**重出**的产物（不是"同页换图"），
-    // 没有任何"变了就换掉某一块"的快照文件可盯。声明一个假的信号源比不声明更坏。
+    capabilities: ['asset-upload','draft'],
+    watch: ['review-snapshot.json'],
   };
 }
 

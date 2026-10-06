@@ -6,9 +6,11 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { renderPageReviewHtml } from './review/page-review-html.mjs';
 import { pageDefaults, readPriorRound, seedAssetDecisions } from './lib/prior-round.mjs';
+import {sha256,writeReviewContext} from './lib/review-edits.mjs';
+import {copyScalar} from './lib/copy-scalars.mjs';
 
 function argsOf(argv) { const out = {}; for (let i = 0; i < argv.length; i += 2) out[argv[i]] = argv[i + 1]; return out; }
-function clean(value) { return String(value ?? '').trim().replace(/^["']|["']$/g, ''); }
+function clean(value) { return copyScalar(value); }
 function scalar(frontmatter, key) { return clean(frontmatter.match(new RegExp('^' + key + ':\\s*(.*)$', 'm'))?.[1] ?? ''); }
 function splitPages(content) {
   return [...content.replace(/\r\n/g, '\n').matchAll(/(?:^|\n)---\n([\s\S]*?)\n---\n([\s\S]*?)(?=\n---\ncontract_version:|$)/g)]
@@ -62,6 +64,7 @@ const exceptionsByPage = new Map();
 for (const item of factExceptions) exceptionsByPage.set(Number(item.page_number), [...(exceptionsByPage.get(Number(item.page_number)) || []), item]);
 const reviewAssetDir = resolve(dirname(outputPath), 'assets');
 mkdirSync(reviewAssetDir, { recursive: true });
+const imageMap = {};
 function localizeImages(markdown) {
   return String(markdown).replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (whole, alt, rawTarget) => {
     const target = rawTarget.trim().replace(/^<|>$/g, '');
@@ -74,7 +77,9 @@ function localizeImages(markdown) {
       destination = resolve(reviewAssetDir, dot > 0 ? name.slice(0, dot) + '-' + index + name.slice(dot) : name + '-' + index);
     }
     if (!existsSync(destination)) copyFileSync(source, destination);
-    return '![' + alt + '](' + relative(dirname(outputPath), destination).split('\\').join('/') + ')';
+    const local = relative(dirname(outputPath), destination).split('\\').join('/');
+    imageMap[local] = rawTarget.trim();
+    return '![' + alt + '](' + local + ')';
   });
 }
 const pages = splitPages(copyRaw).map(({ frontmatter, body }) => {
@@ -95,23 +100,26 @@ const pages = splitPages(copyRaw).map(({ frontmatter, body }) => {
     ],
     sections: [
       { label: '页面主体内容', value: localizeImages(section(body, 'Page Content', 'Speaker Notes')), format: 'markdown' },
-      { label: 'Speaker Notes', value: section(body, 'Speaker Notes', 'Production Notes'), collapsed: true },
+      { label: '讲述备注', value: section(body, 'Speaker Notes', 'Production Notes'), collapsed: true },
       { label: '制作说明', value: section(body, 'Production Notes', 'Sources'), collapsed: true },
       { label: '来源', value: section(body, 'Sources'), collapsed: true },
-      {
-        label: '最终实际使用事实',
-        value: facts.length ? facts.map(item => item.fact_id + ' · ' + (item.semantic_status || 'pending') + ' · ' + item.claim_text).join('\n\n') : '本页没有需要外部核对的实际使用事实。',
+      ...(facts.length ? [{
+        label: '事实核查', editable:false,
+        value: facts.map(item => [item.surface,item.finding,item.note].filter(Boolean).join('：')).join('\n\n'),
         collapsed: true,
-      },
+      }] : []),
     ],
   };
 });
 const recheckPages = pages.filter(page => page.requires_recheck);
+const context = writeReviewContext(dirname(outputPath),{type:'copy',reviewKind,sourceSha256,pages,sections:[],imageMap,
+  files:[{path:copyPath,sha256:sha256(copyRaw)},...(args['--audit'] ? [{path:resolve(args['--audit']),sha256:sha256(auditRaw)}] : [])]});
 const html = renderPageReviewHtml({
   reviewKind,
   title: kind === 'sample' ? '代表性样页校准' : '完整 By-page 图文审阅',
   subtitle: '请逐页检查 ' + pages.length + ' 页的标题、主要信息、完整主体、表格、图表说明和图片。',
   sourceSha256,
+  draftPath:context.draftPath,
   pages,
   notice: reviewNotice(pages, factExceptions.length > 0, recheckPages.length),
   allowUploads: kind === 'final',

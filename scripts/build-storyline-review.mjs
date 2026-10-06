@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { renderPageReviewHtml } from './review/page-review-html.mjs';
 import { pageDefaults, readPriorRound, seedAssetDecisions } from './lib/prior-round.mjs';
+import {sha256,writeReviewContext} from './lib/review-edits.mjs';
 
 const args = {};
 for (let i = 0; i < process.argv.slice(2).length; i += 2) args[process.argv.slice(2)[i]] = process.argv.slice(2)[i + 1];
@@ -51,9 +52,10 @@ const pages = architecture.pages.map(page => {
   ];
   return {
     page_number: page.page_number,
+    section_id: page.section_id,
     title: page.title_intent,
     claim: page.main_message,
-    points: page.content_blocks.map(block => block.block_title + '：' + block.content_requirement),
+    blocks: page.content_blocks.map(block => ({title:block.block_title,text:block.content_requirement})),
     meta: [
       { label: '页面类型', value: page.page_type },
       { label: '页面任务', value: page.page_job },
@@ -70,11 +72,15 @@ const pages = architecture.pages.map(page => {
   };
 });
 const recheckPages = pages.filter(page => page.requires_recheck);
+const sections = architecture.sections.map(s => ({section_id:s.section_id,title:s.title,lead:s.audience_shift,transition:s.transition}));
+const sourceSha256 = sha256(architectureRaw+'\n---ASSET-MANIFEST---\n'+manifestRaw);
+const context = writeReviewContext(dirname(outputPath),{type:'architecture',reviewKind:'storyline',sourceSha256,pages,sections,
+  files:[{path:architecturePath,sha256:sha256(architectureRaw)},{path:manifestPath,sha256:sha256(manifestRaw)}]});
 const html = renderPageReviewHtml({
   reviewKind: 'storyline',
   title: 'Storyline 与页面架构审阅',
   subtitle: architecture.storyline_thesis + ' · 共 ' + pages.length + ' 页。请一起判断章节推进、页面任务和图片候选。',
-  sourceSha256: createHash('sha256').update(architectureRaw).update('\n---ASSET-MANIFEST---\n').update(manifestRaw).digest('hex'),
+  sourceSha256, sections, thesis:architecture.storyline_thesis, draftPath:context.draftPath,
   pages,
   notice: recheckPages.length
     ? '所有页面默认通过；上一轮你标了「需要修改」的 ' + recheckPages.length + ' 页必须复核后明确选择（点一下通过即可）。每页先展示推荐的 1–3 张图片，其他候选折叠；改变图片状态或输入反馈后，本页自动切换为需要修改。'

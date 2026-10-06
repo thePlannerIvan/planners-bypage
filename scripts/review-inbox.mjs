@@ -29,17 +29,13 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { FEEDBACK_REL, HISTORY_DIR, resolveSurfacePaths, surfacePath } from './review-surface.mjs';
+import {contentHash,prepareEdits,commitEdits} from './lib/review-edits.mjs';
 
 const CURSOR_NAME = '.inbox-cursor.json';
 const ALLOWED_CONTRACT = '1.1.0';
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
-}
-
-function contentHash(value) {
-  const canonical = JSON.stringify(value, Object.keys(value || {}).sort());
-  return createHash('sha256').update(canonical).digest('hex');
 }
 
 function rounds(historyDir) {
@@ -139,6 +135,9 @@ export function importSubmissions(surfaceFile, { dryRun = false } = {}) {
     receipt.next_action_zh = '没有新东西可收。';
     return receipt;
   }
+  let prepared;
+  try { prepared = prepareEdits(submission,reviewDir); }
+  catch (error) { receipt.ok = false; receipt.rejected.push(error.message); receipt.next_action_zh = '提交和草稿仍在；先核对原文与用户修改，不得覆盖或沿用旧批准。'; return receipt; }
   if (dryRun) {
     receipt.imported = { hash: digest, dry_run: true };
     receipt.next_action_zh = '--dry-run：只说会收哪一份，没写任何文件。';
@@ -157,6 +156,16 @@ export function importSubmissions(surfaceFile, { dryRun = false } = {}) {
   const native = { ...submission };
   delete native.pre_check;
   delete native.pre_check_note;
+  delete native.review_changes;
+  if (prepared) {
+    native.source_sha256 = prepared.sourceHash;
+    native.decisions = native.decisions.map(d => ({...d,page_number:prepared.mapping.get(d.page_number)})).sort((a,b) => a.page_number-b.page_number);
+    commitEdits(prepared,reviewDir);
+    cursor.applied_draft = contentHash({edits:prepared.changes.edits,page_order:prepared.changes.page_order,section_order:prepared.changes.section_order});
+    receipt.content_changed = prepared.changed;
+    receipt.page_mapping = Object.fromEntries(prepared.mapping);
+    receipt.requires_fact_recheck = prepared.changed && prepared.context.type === 'copy';
+  }
   const serialized = JSON.stringify(native, null, 2) + '\n';
   const round = appendRound(historyDir, serialized);
   writeFileSync(latestPath, serialized, 'utf8');
@@ -176,6 +185,7 @@ export function importSubmissions(surfaceFile, { dryRun = false } = {}) {
   // （这里曾经写死成逐页面的 stages/07 —— storyline 的提交会被指到错的东西上。）
   const NEXT_STEP = {
     bypage: { validator: 'scripts/validate-review-feedback.mjs', doc: 'stages/07-fact-audit-review.md', units: '页' },
+    bypage_sample: { validator: 'scripts/validate-review-feedback.mjs', doc: 'stages/07-fact-audit-review.md', units: '页' },
     by_page_copy: { validator: 'scripts/validate-review-feedback.mjs', doc: 'stages/07-fact-audit-review.md', units: '页' },
     by_page_sample: { validator: 'scripts/validate-review-feedback.mjs', doc: 'stages/07-fact-audit-review.md', units: '页' },
     storyline: { validator: 'scripts/validate-storyline-review-feedback.mjs', doc: 'stages/04-storyline-review.md', units: '页结构' },
@@ -187,6 +197,7 @@ export function importSubmissions(surfaceFile, { dryRun = false } = {}) {
     ? '收件完成：接着跑 ' + next.validator + '（它才是"算不算门"的判据），然后按 ' + next.doc + ' 处理修改项。'
     : '收件完成：这份提交的 review_kind 是 ' + String(submission.review_kind)
       + '，不在本 Skill 认识的两个面里（bypage / storyline）—— 上面每一条都说明字段对不对，先确认它该不该由这一步收。';
+  if (receipt.requires_fact_recheck) receipt.next_action_zh = '用户文字和页序已写回正式稿。旧事实审计已失效；按新稿重新核查并审阅后再交付，不得还原用户修改。页码对应见 page_mapping。';
   return receipt;
 }
 

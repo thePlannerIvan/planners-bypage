@@ -47,6 +47,7 @@ description: 把一份或多份 Word、PDF、Markdown、PPT、表格和图片资
 - 采用或备用的处理图必须完成内容视觉检查；只检查尺寸、像素或坐标不能代替确认“裁到的是目标图”。
 - 事实归属必须从 Review Queue 的原文片段反向核对；不得用批量 `confirm` 放行来源事实。
 - 两个审阅面走同一条公共缝（`planners-review-core`）；宿主生命周期不在本 Skill 里。**收件的文件协议只在 `WORKFLOW.md` 维护一份**（「项目目录」与「责任边界」两节），本页不复述。
+- 结构与完整稿使用同一公共内容审阅壳。用户点击修改文字、拖动重排的结果由本 Skill 收件后写回正式产物，优先于模型旧稿；完整稿变化后按 Stage 07 重新核查，不沿用旧事实审计。
 - 本 Skill 不决定 `contain|cover`、最终裁剪比例、裁剪锚点、图片槽位或模板关系；这些属于 `$planners-ppt-hell`。但本 Skill 必须决定页面需要什么内容、关系和素材，不能把内容设计误交给 Layout。
 - **提案语言与风格档案归本 Skill**（2026-09-26 从 `planners-proposal-system` 并入）：`references/proposal-language.md` 是提案页的语言规范，提案类稿件在写作阶段读它；`templates/copy-style-profile.md` 是本项目的语言基线档案，需要固定语言时从它起一份 `.bypage-work/copy-style-profile.md`（上游 proposal 若已建立基线，随交接带过来）。
 - 不创建 Method Wiki，不运行品牌策略方向循环，不读取旧 Proposal System 的 `_internal/`。

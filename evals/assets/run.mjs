@@ -75,7 +75,7 @@ const uploaded = await (await fetch(new URL('__review/upload?rel=' + encodeURICo
 assert(uploaded.ok && uploaded.path && uploaded.path.endsWith('uploads/page-01/new.png') && uploaded.sha256,
   '上传必须落在审阅目录里并回报真实哈希');
 const rel = 'uploads/page-01/new.png';
-assert(readFileSync(join(liveDir, 'index.html'), 'utf8').includes('{path:stored,url:stored,'),
+assert(readFileSync(join(liveDir, 'index.html'), 'utf8').includes('{path:rel,url:rel,'),
   '页面必须把同一个相对基准的路径写进 attachments 的 path 与 url');
 // 页面真正会写下的那两个字段（相对审阅目录）→ 收件 → 进清单
 const liveSubmissions = join(liveDir, 'review-submissions.json');

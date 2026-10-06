@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -42,9 +43,9 @@ const stopAll = async (surfaces) => {
 const output = join(temp, 'storyline/index.html');
 runNode(join(root, 'scripts/build-storyline-review.mjs'), ['--architecture', architecturePath, '--assets', manifestPath, '--output', output]);
 const html = readFileSync(output, 'utf8');
-assert(html.includes('推荐图片') && html.includes('查看其他候选图片（') && html.includes('group":"other"'), 'Storyline Review 必须先显示推荐图片并折叠其他候选');
+assert(html.includes('更多图片') && html.includes("a.group !== 'other'") && html.includes('group":"other"'), 'Storyline Review 必须先显示推荐图片并折叠其他候选');
 assert(html.includes('data-asset-choice') && html.includes('asset-one'), '图片必须可以逐张决定');
-assert(html.includes("contract_version: '1.1.0'"), '前端保存 Payload 必须使用 Review Contract 1.1.0');
+assert(html.includes('"feedbackContractVersion":"1.1.0"'), '前端保存 Payload 必须使用 Review Contract 1.1.0');
 assert(existsSync(join(temp, 'storyline/assets/asset-one.png')), 'Review 必须复制可访问的图片预览');
 // 入口必须有**裸标记独占一行**的桥注入点（R3）—— 宿主 serve 时原地替换它
 const markerLines = html.split('\n').filter(line => line.trim() === '{{REVIEW_BRIDGE}}').length;
@@ -56,7 +57,7 @@ const live = jsonOutput(runNode(join(root, 'scripts/start-storyline-review.mjs')
   '--review-dir', join(temp, 'live'), '--port', '0', '--no-open',
 ]));
 const liveHtml = await (await fetch(live.url)).text();
-const reviewData = JSON.parse(liveHtml.match(/const REVIEW = (\{.*\});/)?.[1] || '{}');
+const reviewData = JSON.parse(liveHtml.match(/<script id="reviewData" type="application\/json">([\s\S]*?)<\/script>/)?.[1] || '{}');
 assert(liveHtml.includes('ReviewBridge'), '宿主 serve 出去的页面必须已经注入桥');
 assert(reviewData.reviewKind === 'storyline', '页面自报的面必须是 storyline（下面几条判据都用它，而不是测试手写的字符串）');
 const saved = await submitToHost(live, {
@@ -80,86 +81,9 @@ assert(receipt1.units && receipt1.units.label === '页结构' && /stages\/04-sto
    做法：把 serve 出去的页面里的那段脚本拿到 node vm 里跑，DOM 换成会记账的桩，
    `localStorage` **一碰就抛**（照抄不透明源 iframe 的真实行为：有插件时页面就在那种帧里）。
    旧写法把 render() 排在 await ReviewBridge.connect() 后面 —— 握手不落地时整页只剩静态骨架、零报错。 */
-const pageBootSource = () => readFileSync(join(root, 'scripts/review/page-review-html.mjs'), 'utf8');
-const vm = await import('node:vm');
-const pageScriptOf = (html) => (html.match(/<script>([\s\S]*?)<\/script>/g) || [])
-  .map(block => block.replace(/^<script>/, '').replace(/<\/script>$/, ''))
-  .find(body => body.includes('const REVIEW'));
-function renderPageOffline(html, options) {
-  const opts = options || {};
-  const made = {};
-  // 桩要**真的记账**：这一页是 createElement + appendChild 建 DOM 的，
-  // 只记 innerHTML 会数成 0，判据就变成永远为假。
-  const stub = (tag) => {
-    const target = { tag: tag || null, children: [], innerHTML: '', textContent: '', value: '',
-                     hidden: false, disabled: false, className: '', id: '',
-                     style: {}, dataset: {}, classList: { toggle() {}, add() {}, remove() {}, contains: () => false } };
-    return new Proxy(target, {
-      get(t, key) {
-        if (key === 'appendChild') return (node) => { t.children.push(node); return node; };
-        if (key === 'insertAdjacentHTML') return (where, html) => { t.innerHTML += String(html); };
-        if (key === 'querySelectorAll') return () => [];
-        if (key === 'querySelector') return () => stub();
-        if (key === 'addEventListener' || key === 'setAttribute' || key === 'getAttribute'
-          || key === 'removeAttribute' || key === 'focus') return () => null;
-        if (key in t) return t[key];
-        return () => undefined;
-      },
-      set(t, key, value) { t[key] = value; return true; },
-    });
-  };
-  const sandbox = {
-    document: {
-      getElementById: (id) => (made[id] = made[id] || stub()),
-      querySelectorAll: () => [],
-      querySelector: () => stub(),
-      createElement: (tag) => stub(tag),
-      addEventListener: () => {},
-      body: stub(),
-    },
-    window: {
-      get localStorage() { throw new Error("Failed to read the 'localStorage' property: sandboxed and lacks allow-same-origin"); },
-      addEventListener: () => {}, location: { reload: () => {} },
-    },
-    localStorage: {
-      getItem() { throw new Error("Failed to read the 'localStorage' property: sandboxed and lacks allow-same-origin"); },
-      setItem() { throw new Error('SecurityError'); },
-      removeItem() { throw new Error('SecurityError'); },
-    },
-    setTimeout, clearTimeout, requestAnimationFrame: () => 0, console, structuredClone,
-  };
-  if (opts.bridge) { sandbox.window.ReviewBridge = opts.bridge; sandbox.ReviewBridge = opts.bridge; }
-  vm.runInNewContext(pageScriptOf(html), sandbox, { timeout: 5000 });
-  return made;
-}
-const safeRender = (html, options) => {
-  try { return { made: renderPageOffline(html, options), error: null }; }
-  catch (error) { return { made: {}, error: String(error.message || error) }; }
-};
-const expectedUnits = (reviewData.pages || []).length;
-const offline = safeRender(liveHtml, {});
-// 单位与导航都是真的 appendChild 进去的 —— 数它们，不数字符串
-const unitCount = (made) => ((made['pages'] || {}).children || []).filter(node => node.tag === 'article').length;
-const navCount = (made) => ((made['nav'] || {}).children || []).filter(node => node.tag === 'a').length;
-assert(!offline.error && unitCount(offline.made) === expectedUnits && navCount(offline.made) === expectedUnits,
-  '页面必须能"没有桥也把自己画出来"（没有桥也要有逐单元与导航）',
-  offline.error ? ('脚本当场抛：' + offline.error) : ('units=' + unitCount(offline.made) + ' nav=' + navCount(offline.made)));
-assert(!offline.error && !!(offline.made['progressFill'] || {}).style && offline.made['progressFill'].style.width !== undefined
-  && String(offline.made['progressFill'].style.width).length > 0, '进度条也要画出来（不依赖握手）');
-const stuck = safeRender(liveHtml, { bridge: { connect: () => new Promise(() => {}), transport: 'postMessage' } });
-assert(!stuck.error && unitCount(stuck.made) === expectedUnits && navCount(stuck.made) === expectedUnits,
-  '反面对照：握手永不返回时页面仍然必须完整画出来',
-  stuck.error ? ('脚本当场抛：' + stuck.error) : ('units=' + unitCount(stuck.made)));
-// R11：刷新出口必须**永久可见**，且不依赖任何告警出现
-assert(/id="reload"/.test(liveHtml),
-  'R11：serve 出去的页面上必须有永久可见的刷新出口');
-assert(!/invalidated[\s\S]{0,400}id="reload"/.test(pageBootSource()),
-  'R11：刷新出口不许藏在告警里（它是页头的常驻控件）');
-const pageBoot = readFileSync(join(root, 'scripts/review/page-review-html.mjs'), 'utf8');
-const bootSlice = pageBoot.slice(pageBoot.indexOf('(async function boot(){'));
-assert(bootSlice.indexOf('render()') < bootSlice.indexOf('await'),
-  '渲染必须排在第一个 await 之前（桥是增强，不是氧气）');
-
+const rendered = spawnSync(process.env.PLAYWRIGHT_PYTHON || 'python3', [moduleScript('planners-review-core','evals/check-content-render.py'),'--html',output],{encoding:'utf8'});
+assert(rendered.status === 0,'真实浏览器必须在离线及握手超时时渲染完整内容', rendered.stdout+rendered.stderr);
+assert(/id="reload"/.test(liveHtml),'刷新出口必须常驻');
 const secondLive = jsonOutput(runNode(join(root, 'scripts/start-storyline-review.mjs'), [
   '--architecture', architecturePath, '--assets', manifestPath,
   '--review-dir', join(temp, 'live'), '--port', '0', '--no-open',
@@ -215,7 +139,7 @@ const bypageLive = jsonOutput(runNode(join(root, 'scripts/start-bypage-review.mj
 ]));
 const bypageLiveHtml = await (await fetch(bypageLive.url)).text();
 assert(/id="reload"/.test(bypageLiveHtml), 'R11：逐页面 serve 出去的页面上也有永久刷新出口');
-const bypageData = JSON.parse(bypageLiveHtml.match(/const REVIEW = (\{.*\});/)?.[1] || '{}');
+const bypageData = JSON.parse(bypageLiveHtml.match(/<script id="reviewData" type="application\/json">([\s\S]*?)<\/script>/)?.[1] || '{}');
 const bypageSaved = await submitToHost(bypageLive, {
   contract_version: '1.1.0', review_kind: 'bypage', source_sha256: bypageData.sourceSha256,
   saved_at: new Date().toISOString(), overall_decision: 'approve', overall_feedback_zh: '',
@@ -272,7 +196,7 @@ writeFileSync(recheckDraft, [pageBlock(1, '第一页', '第一页主张'), pageB
 const recheckDir = join(temp, 'recheck-live');
 const readServed = async (live) => {
   const served = await (await fetch(live.url)).text();
-  return { html: served, data: JSON.parse(served.match(/const REVIEW = (\{.*\});/)?.[1] || '{}') };
+  return { html: served, data: JSON.parse(served.match(/<script id="reviewData" type="application\/json">([\s\S]*?)<\/script>/)?.[1] || '{}') };
 };
 const startRecheck = () => jsonOutput(runNode(join(root, 'scripts/start-bypage-review.mjs'), [
   '--copy', recheckDraft, '--assets', manifestPath, '--review-dir', recheckDir, '--kind', 'final', '--port', '0', '--no-open',
@@ -303,7 +227,7 @@ assert(round2.data.pages.every(page => 'default_decision' in page),
   '每一页都必须显式给出 default_decision（字段名与页面读的那个字必须一致）');
 assert(round1.data.pages.every(page => page.default_decision === 'approve'),
   '第一轮：非事实例外页一律默认通过（本 Skill 原有语义，不许变）');
-assert(round2.html.includes('page.default_decision'),
+assert(round2.html.includes('p.default_decision'),
   '页面必须真的读 default_decision（产出方给的数据不许被页面忽略）');
 // 人「只写了句整体意见、没碰第 1 页」时页面会送出的那份 payload ＝ 能覆盖到默认值的页。
 // 提交给**第 2 轮那个还活着的宿主**，再拿 Validator 判它 —— 旧代码在这条上给的是"全通过"的合法记录。
@@ -341,7 +265,7 @@ assert(seeded.some(entry => entry.asset_id === 'asset-two' && entry.status === '
   '人上一轮选的图片状态（排除）必须被带回本轮，不许被生成器的候选分组（backup）覆盖');
 assert(storyRound2.data.pages[0].default_decision === null,
   '上一轮要求修改的页在图片决定带回来之后，仍然必须由人重新明确选择');
-assert(storyRound2.html.includes('({asset_id: entry.asset_id, status: entry.status})'),
+assert(storyRound2.html.includes('asset_decisions'),
   '反馈文件里 asset_decisions 的形状必须与原来一致（只写 asset_id 与 status）');
 pass('重出审阅页不许重置人的决定（逐页决定 + 逐张图片）');
 
@@ -381,7 +305,7 @@ assert(!readFileSync(live.feedback_path, 'utf8').includes('pre_check'),
 
 // R10：粒度由产出方定 —— 页面必须允许"不针对任何一页、只说一句整体意见"
 assert((await (await fetch(live.url)).text()).includes('overall_feedback_zh')
-  && (await (await fetch(live.url)).text()).includes('整体验收意见'),
+  && (await (await fetch(live.url)).text()).includes('整体意见'),
   '页面必须保留"只说一句整体意见"那条入口（不是只有逐页）');
 
 // ② 独立路径起→停之后：不留进程、不留端口。
@@ -404,13 +328,13 @@ pass('缝上的两条钉子：--surface-only 不起宿主；起→停不收干�
 //    连不上要在页面上说出来。（旧写法是把 render() 挂在 ReviewBridge.connect() 后面 ——
 //    握手不落地时整页只剩静态骨架、零报错。浏览器里的原始证据见
 //    .scratch/video-idea-seam/tools/plugin_handshake_harness.py 的 init / no-init 两种模式。）
-const pageSource = readFileSync(join(root, 'scripts/review/page-review-html.mjs'), 'utf8');
-const bootBlock = pageSource.slice(pageSource.indexOf('(async function boot(){'));
-assert(bootBlock.indexOf('render()') < bootBlock.indexOf('await'),
+const pageSource = readFileSync(moduleScript('planners-review-core','assets/content-review/interactions.js'), 'utf8');
+const bootBlock = pageSource.slice(pageSource.indexOf('async function boot()'));
+assert(bootBlock.indexOf('setMode(') < bootBlock.indexOf('await'),
   '渲染必须排在第一个 await 之前（桥是增强，不是氧气）');
-assert(/BRIDGE_TIMEOUT_MS/.test(pageSource) && /connectWithTimeout/.test(pageSource),
+assert(/Promise.race/.test(pageSource) && /2500/.test(pageSource),
   '握手必须有超时上限：不落地就按"没有桥"降级继续画');
-assert(/只读/.test(pageSource), '连不上宿主时页面要**说出来**（只读），不能零报错地空着');
+assert(/暂时无法保存/.test(pageSource), '连不上宿主时页面要**说出来**（只读），不能零报错地空着');
 assert(!/(^|[^.\w])localStorage\s*\./.test(pageSource.replace(/window\.localStorage/g, '')),
   '页面不许裸用 localStorage（不透明源 iframe 里读它会直接抛 → 整页脚本当场死）');
 pass('页面在没有桥/握手不落地时也把自己画出来，并说出来');

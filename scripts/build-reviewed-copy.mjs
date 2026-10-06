@@ -7,6 +7,7 @@ import {
   basename, dirname, join, relative, resolve,
 } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {copyScalar} from './lib/copy-scalars.mjs';
 
 function argsOf(argv) {
   const out = {};
@@ -22,8 +23,7 @@ function pageNumber(page) {
   return Number(page.match(/^page_number:\s*(\d+)\s*$/m)?.[1]);
 }
 function scalar(page, key) {
-  return String(page.match(new RegExp(`^${key}:\\s*(.*)$`, 'm'))?.[1] || '')
-    .trim().replace(/^["']|["']$/g, '');
+  return copyScalar(page.match(new RegExp(`^${key}:\\s*(.*)$`, 'm'))?.[1]);
 }
 function section(page, name, nextName = null) {
   const end = nextName ? `(?=\\n##\\s*${nextName})` : '$';

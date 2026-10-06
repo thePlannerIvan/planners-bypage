@@ -57,6 +57,8 @@ node "<Skill>/scripts/validate-review-feedback.mjs" +  --feedback "<project>/.by
 
 **收件在做什么**：页面提交落在 `review-submissions.json`（宿主只做覆盖写）；`review-inbox.mjs` 把它**翻译回本 Skill 的形状** —— `review-feedback.json` 是最新一轮，同时**只追加**一份 `reviews/bypage/history/round-NN.json`（既有轮次逐字节不动）。它同时替页面挡住结构不合契约的提交，并按内容哈希幂等（同一份提交收两次不长出第二轮）。
 
+文字点击即可编辑，目录可拖动重排；草稿自动落盘但不唤醒模型。确认后的文字与顺序由 inbox 检查原文版本、保留原稿后写回 `bypage-draft.md`，不得用旧稿覆盖用户修改。收据 `requires_fact_recheck` 为真时，先基于新稿重新事实核查、再审阅；旧 Audit 必须失效。页码变化按 `page_mapping` 同步需要逐页对应的材料记录。原文有外部修改时不覆盖，保留提交与草稿并先处理冲突。
+
 **决定的生命周期（R7）**：上一轮被人标了「需要修改」的页，重出审阅页后**回到待复核**，不许变回默认通过（那是伪造人的决定）。批复一次点击即可，不需要先清空任何东西；上一轮的反馈文字只作**只读上下文**显示，不预填进输入框。
 
 上传图片必须在返修时正式进入 Asset Manifest、Material Pack 和 By-page（`import-review-assets.mjs` 读的是收件后的 `review-feedback.json`）。文案、事实或图片变化后重新审计并使旧批准失效。

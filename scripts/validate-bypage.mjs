@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import {copyScalar} from './lib/copy-scalars.mjs';
 
 const CONTRACT = 'bypage/1.0.0';
 function output(valid, records, errors, code = null) {
@@ -8,7 +9,7 @@ function output(valid, records, errors, code = null) {
   process.exit(code ?? (valid ? 0 : 1));
 }
 function scalar(frontmatter, key) {
-  return String(frontmatter.match(new RegExp('^' + key + ':\\s*(.*)$', 'm'))?.[1] || '').trim().replace(/^["']|["']$/g, '');
+  return copyScalar(frontmatter.match(new RegExp('^' + key + ':\\s*(.*)$', 'm'))?.[1]);
 }
 function splitPages(content) {
   return [...content.replace(/\r\n/g, '\n').matchAll(/(?:^|\n)---\n([\s\S]*?)\n---\n([\s\S]*?)(?=\n---\ncontract_version:|$)/g)]

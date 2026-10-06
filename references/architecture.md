@@ -28,6 +28,8 @@ Proposal hands over its preserved memory, source index, Storyline, structure con
 
 ## Scope boundary
 
+The optional content shell and DSH tokens are owned by `planners-review-core`. This Skill's builders map its native artifacts to the shell; `scripts/lib/review-edits.mjs` and `review-inbox.mjs` own source-version checks, backups, human edit/reorder application, and native feedback. Drafts are durable but are not approvals. Copy changes invalidate the old fact audit; edited canonical content, not the original preview, feeds PPT handoff.
+
 By-page decides what the audience needs to see and how the argument should be expressed in content. `$planners-ppt-hell` decides layout, slots, cropping and PPTX implementation. Validators check mechanical and authenticity properties; they do not decide whether the story is sufficiently developed.
 
 ## Retired behavior
