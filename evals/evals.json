@@ -1,0 +1,29 @@
+{
+  "skill": "planners-bypage",
+  "cases": [
+    {
+      "id": "storyline-to-full-content",
+      "prompt": "根据已确认的 Storyline 和项目资料，写出可以交给 PPT 制作的完整 By-page。不要只复述 Storyline。",
+      "route_expected": "system",
+      "expected_behavior_change": "把判断展开成完整页面内容和论证。",
+      "must_do": ["保留上游确认内容", "补足事实、解释、案例或关系", "写出完整页面内容"],
+      "must_not_do": ["只写摘要", "把内容责任交给 PPT Layout"]
+    },
+    {
+      "id": "evidence-gap-judgment",
+      "prompt": "已有资料支持主要方向，但部分页面细节不足。请判断哪些内容可以直接写，哪些需要补资料或确认。",
+      "route_expected": "system",
+      "expected_behavior_change": "把补充研究作为按需判断，不把搜索机械化，也不静默改变主线。",
+      "must_do": ["先使用已有资料", "暴露影响方向的缺口", "必要时回到用户或 Proposal"],
+      "must_not_do": ["为了填页强行扩写", "把 Validator 当作内容策划者"]
+    },
+    {
+      "id": "vans-baseline",
+      "prompt": "根据 Vans 已确认的 Storyline 和研究资料，重新完成逐页内容，并与已有草稿对比。",
+      "route_expected": "system",
+      "expected_behavior_change": "历史、人物、产品、页面关系和图片作用被真正展开，达到 PPT 内容交接程度。",
+      "must_do": ["回读项目记忆和用户确认内容", "把抽象判断落到具体内容", "保持来源和边界"],
+      "must_not_do": ["退回泛化提纲", "用单张候选图片替代页面论证"]
+    }
+  ]
+}

@@ -2,38 +2,31 @@
 
 ## 这一步在做什么
 
-根据已批准的页面架构和逐页材料包，完成足以直接交给 PPT 制作者的逐页内容。
+把已确认的 Storyline、内容展开和逐页材料，写成可以直接交给 PPT 制作者的完整内容稿。
 
 ## 工作方式
 
-完整读取 `references/bypage-writing.md`。**当这份稿是提案**（上游来自 `planners-proposal-system`，或受众是客户决策者）时，同时读取 `references/proposal-language.md` —— 提案页不是缩短的分析文章，是能被扫读、讲述和制作的论证单元。
+完整读取当前项目的工作记忆、上游交接文件、内容展开和材料包。每页先确认观众需要理解什么，再写出足够支撑这个判断的事实、解释、案例、关系和页面内容。根据页面任务选择段落、列表、表格、图表、图片、流程、案例或模型。
 
-语言基线：项目若已有 `.bypage-work/copy-style-profile.md`（本 Skill 起于 `templates/copy-style-profile.md`，或上游 proposal 随交接带过来），按它写；一次性改句不写进档案，连续复现的语言偏好才写。
+提案语言遵循 `references/proposal-language.md` 和项目语言基线，但语言不能替代内容。必要的历史、人物、产品、动作、结果、限制和来源都应保留。
 
-按章节写作，但不要求逐章确认。每页先明确受众看完后应理解什么，再选择段落、列表、表格、图表、图片、流程、案例或模型等合适形式。
+## 不要做什么
 
-必须保留：
-
-- 页面真正可见的完整内容；
-- 图片路径、说明和语义作用；
-- 表格的表头、单位、时间和口径；
-- 图表的真实数据关系与读图结论；
-- 必要的 Speaker Notes、Production Notes 与来源定位。
-
-不要因为猜测版面放不下而删除关键内容；下游 `$planners-ppt-hell` 的 Layout 阶段负责上屏压缩、Notes、拆页和版式。
-
-普通项目直接完成全稿。只有长稿、强参考风格或密度不确定时，才先写少量代表性样页，不设置强制样页门禁。
+- 不把 Storyline 改写成几句摘要就结束。
+- 不用抽象概念、空泛金句或单张泛化图片代替页面论证。
+- 不因为猜测版面放不下而删除关键内容；Layout 阶段负责压缩和排版。
+- 不静默改变上游已经批准的 Storyline；发现方向问题时回退处理。
 
 ## 产物
 
-按照 `templates/by-page.md`写入 `.bypage-work/bypage-draft.md`并运行 Validator。
+按照 `templates/by-page.md` 写入 `.bypage-work/bypage-draft.md`，并运行现有 Validator。
 
 ```bash
-node "<Skill>/scripts/validate-bypage.mjs" +  "<project>/.bypage-work/bypage-draft.md"
+node "<Skill>/scripts/validate-bypage.mjs" "<project>/.bypage-work/bypage-draft.md"
 ```
 
 ## 完成标准
 
-- 语义完成：所有页面达到可制作颗粒度，没有摘要式空壳。
-- 机器检查：页码、必要字段、必要章节、图片引用与占位语有效。
-- Validator 不能证明：页面内容是否准确、有用、容量合理。
+- 语义完成：页面已经从“要讲什么”发展到“具体怎么讲、凭什么成立、观众看到什么”，可以交给 PPT 制作者继续做版式。
+- 机器检查：页码、必要字段、必要章节、图片引用和来源结构有效。
+- Validator 不能证明：内容是否准确、有用、完整或足够有说服力；这些需要回源检查和人工 By-page Review。
