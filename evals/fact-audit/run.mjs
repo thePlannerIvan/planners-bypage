@@ -20,7 +20,7 @@ const sha = b => createHash('sha256').update(b).digest('hex');
 
 const temp = mkdtempSync(join(tmpdir(), 'planners-bypage-seam-'));
 const copy = join(temp, 'bypage.md');
-writeFileSync(copy, '# 测试稿\n\n样本 120 人，愿意复购 78 人，占比 65%。\n');
+writeFileSync(copy, Array.from({length:7}, (_, index) => `---\ncontract_version: 1.0.0\npage_number: ${index+1}\n---\n\n样本 120 人，愿意复购 78 人，占比 65%。\n`).join('\n'));
 const copyHash = sha(readFileSync(copy));
 const sourceIndex = join(temp, 'source-index.json');
 writeFileSync(sourceIndex, JSON.stringify({ contract_version: 'source-index/2.0.0', source_root: '.', sources: [] }, null, 2));

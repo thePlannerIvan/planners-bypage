@@ -24,7 +24,7 @@ The three paths share the same content realization and delivery responsibility a
 
 ## Seams
 
-Proposal hands over its preserved memory, source index, Storyline, structure contract and feedback. PPT Hell hands over the non-PPT source package when it needs content work before visual production. By-page hands over complete page content and assets to `$planners-ppt-hell`. If content research reveals that the core Storyline must change, return to Proposal on the Proposal path; otherwise return to Stage 02 and ask the user before changing the working structure.
+The shared path/ownership interface is `references/content-handoff.md`. Proposal hands over its preserved memory, source index, approved structure and feedback. `adapt-proposal-architecture.mjs` converts its vocabulary into a separate working architecture without replacing the original or existing work. PPT Hell passes materials, existing active paths and its resume position. Bypage returns the approved production snapshot together with active source, audit and feedback paths. Changes to an approved core judgment require a user decision.
 
 ## Scope boundary
 
@@ -33,5 +33,7 @@ The optional content shell and DSH tokens are owned by `planners-review-core`. T
 By-page decides what the audience needs to see and how the argument should be expressed in content. `$planners-ppt-hell` decides layout, slots, cropping and PPTX implementation. Validators check mechanical and authenticity properties; they do not decide whether the story is sufficiently developed.
 
 ## Retired behavior
+
+`SKILL.md` owns the five-step workflow. The duplicate `WORKFLOW.md`, eight stage instructions and local writing/language rulebooks were retired; writing uses `slide-copy` and optional `storytelling`. Legacy Storyline/sample review CLIs remain for existing project continuation and regression compatibility, not as required entry gates. Fact-check independence and agent reuse belong to `planners-fact-check`, not Review Core.
 
 The Proposal handoff path no longer rebuilds an abstract duplicate of the approved Storyline and treats that as content work. Material packs are support work after content realization, not a substitute for it.

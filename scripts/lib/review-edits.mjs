@@ -63,7 +63,9 @@ export function prepareEdits(submission, reviewDir) {
   const output = !altered ? raw : context.type === 'architecture' ? applyStructure(raw,changes) : applyCopy(raw,changes,context);
   const separator = context.type === 'architecture' ? '\n---ASSET-MANIFEST---\n' : '\n---FACT-AUDIT---\n';
   const dependency = context.files[1] ? readFileSync(context.files[1].path,'utf8') : '';
-  const sourceHash = sha256(output+separator+dependency);
+  const assets = context.type === 'copy' && context.assetManifestPath
+    ? '\n---ASSET-MANIFEST---\n' + readFileSync(context.assetManifestPath, 'utf8') : '';
+  const sourceHash = sha256(output+separator+dependency+assets);
   return {context,changes,source,raw,next:output,changed:output !== raw,sourceHash,
     mapping:new Map(changes.page_order.map((id,i) => [Number(id),i+1]))};
 }

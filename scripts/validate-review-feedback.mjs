@@ -1,17 +1,15 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { moduleScript } from './lib/planners-modules.mjs';
+import { copyPageNumbers } from './lib/copy-pages.mjs';
 
 function argsOf(argv) {
   const out = {};
   for (let index = 0; index < argv.length; index += 2) out[argv[index]] = argv[index + 1];
   return out;
-}
-function pageNumbers(content) {
-  return [...content.matchAll(/^page_number:\s*(\d+)\s*$/gm)].map(match => Number(match[1]));
 }
 const args = argsOf(process.argv.slice(2));
 if (!args['--feedback'] || !args['--copy']) {
@@ -39,9 +37,12 @@ try {
     if ((checked.errors || []).length) {
       throw new Error(`事实审计仍有硬错误：${checked.errors.map(e => e.message).join('；')}`);
     }
-    // 必须人看的页：判为要改（confirmed）与带保留接受（accepted_with_caveat）
+    const adapter = spawnSync(process.execPath, [resolve(import.meta.dirname, 'validate-fact-audit.mjs'),
+      '--audit', auditPath, '--copy', resolve(args['--copy']), '--allow-human-review', 'true'], { encoding: 'utf8' });
+    if (adapter.status !== 0) throw new Error(`事实例外与页面映射无效：${adapter.stdout || adapter.stderr}`);
+    // All factual exceptions must map to actual review pages.
     factExceptionPages = new Set((audit.suspects || [])
-      .filter(s => s.verdict === 'confirmed' || s.verdict === 'accepted_with_caveat')
+      .filter(s => ['confirmed', 'accepted_with_caveat', 'no_source'].includes(s.verdict))
       .map(s => Number(s.location?.page))
       .filter(Number.isInteger));
   }
@@ -50,15 +51,23 @@ try {
   process.exit(2);
 }
 const errors = [];
-const expectedHash = createHash('sha256').update(copyRaw).update('\n---FACT-AUDIT---\n').update(auditRaw).digest('hex');
+let assetBinding = '';
+const contextPath = resolve(dirname(resolve(args['--feedback'])), 'review-context.json');
+if (existsSync(contextPath)) {
+  try {
+    const context = JSON.parse(readFileSync(contextPath, 'utf8'));
+    if (context.assetManifestPath) assetBinding = '\n---ASSET-MANIFEST---\n' + readFileSync(context.assetManifestPath, 'utf8');
+  } catch (error) { errors.push(`审阅资产上下文不可读：${error.message}`); }
+}
+const expectedHash = createHash('sha256').update(copyRaw).update('\n---FACT-AUDIT---\n').update(auditRaw).update(assetBinding).digest('hex');
 if (feedback.contract_version !== '1.1.0') errors.push('contract_version 必须为 1.1.0');
 const expectedKind = kind === 'sample' ? 'bypage_sample' : 'bypage';
 if (feedback.review_kind !== expectedKind) errors.push('review_kind 不匹配');
 if (feedback.source_sha256 !== expectedHash) errors.push('反馈没有绑定当前文案与事实审计');
-const expectedPages = pageNumbers(copyRaw);
+const expectedPages = copyPageNumbers(copyRaw);
 const decisions = Array.isArray(feedback.decisions) ? feedback.decisions : [];
 const decisionPages = decisions.map(item => item.page_number);
-if (new Set(decisionPages).size !== expectedPages.length
+if (decisions.length !== expectedPages.length || new Set(decisionPages).size !== expectedPages.length
   || expectedPages.some(page => !decisionPages.includes(page))
   || decisionPages.some(page => !expectedPages.includes(page))) errors.push('反馈必须恰好覆盖每一页');
 for (const item of decisions) {
@@ -70,6 +79,9 @@ for (const item of decisions) {
       errors.push(`第 ${item.page_number} 页含事实例外，必须明确接受或退回修改`);
     }
   }
+}
+for (const page of factExceptionPages) {
+  if (!expectedPages.includes(page)) errors.push(`事实例外引用了不存在的第 ${page} 页`);
 }
 const hasRevision = decisions.some(item => item.decision === 'revise');
 if (feedback.overall_decision !== (hasRevision ? 'revise' : 'approve')) errors.push('overall_decision 与逐页决定不一致');

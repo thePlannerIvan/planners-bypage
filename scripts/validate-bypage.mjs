@@ -37,7 +37,7 @@ pages.forEach(({ frontmatter, body }, index) => {
   }
   const content = section(body, 'Page Content', 'Speaker Notes');
   if (!content) errors.push({ page: number || null, code: 'empty_content', message: 'Page Content 不能为空' });
-  if (/(?:待补充|待定|待确认|放图|做表格)|\b(?:TBD|TODO|XX+)\b/i.test(content)) errors.push({ page: number || null, code: 'placeholder_content', message: 'Page Content 仍含占位语' });
+  if (/^\s*(?:[-*]\s*)?(?:待补充|待定|待确认|放图|做表格|TBD|TODO|XX+)\s*$/mi.test(content)) errors.push({ page: number || null, code: 'placeholder_content', message: 'Page Content 仍含独立占位语' });
   for (const name of ['Speaker Notes', 'Production Notes', 'Sources']) {
     if (!new RegExp('^##\\s+' + name.replace(' ', '\\s+') + '\\s*$', 'mi').test(body)) errors.push({ page: number || null, code: 'missing_section', message: '缺少 ' + name });
   }

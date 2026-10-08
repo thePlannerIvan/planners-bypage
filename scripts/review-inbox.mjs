@@ -184,11 +184,11 @@ export function importSubmissions(surfaceFile, { dryRun = false } = {}) {
   // 收件之后走哪一步**按面给**：两个面各有自己的 validator 与阶段文档。
   // （这里曾经写死成逐页面的 stages/07 —— storyline 的提交会被指到错的东西上。）
   const NEXT_STEP = {
-    bypage: { validator: 'scripts/validate-review-feedback.mjs', doc: 'stages/07-fact-audit-review.md', units: '页' },
-    bypage_sample: { validator: 'scripts/validate-review-feedback.mjs', doc: 'stages/07-fact-audit-review.md', units: '页' },
-    by_page_copy: { validator: 'scripts/validate-review-feedback.mjs', doc: 'stages/07-fact-audit-review.md', units: '页' },
-    by_page_sample: { validator: 'scripts/validate-review-feedback.mjs', doc: 'stages/07-fact-audit-review.md', units: '页' },
-    storyline: { validator: 'scripts/validate-storyline-review-feedback.mjs', doc: 'stages/04-storyline-review.md', units: '页结构' },
+    bypage: { validator: 'scripts/validate-review-feedback.mjs', doc: 'SKILL.md 的核查与完整图文审阅', units: '页' },
+    bypage_sample: { validator: 'scripts/validate-review-feedback.mjs', doc: 'SKILL.md 的核查与完整图文审阅', units: '页' },
+    by_page_copy: { validator: 'scripts/validate-review-feedback.mjs', doc: 'SKILL.md 的核查与完整图文审阅', units: '页' },
+    by_page_sample: { validator: 'scripts/validate-review-feedback.mjs', doc: 'SKILL.md 的核查与完整图文审阅', units: '页' },
+    storyline: { validator: 'scripts/validate-storyline-review-feedback.mjs', doc: 'SKILL.md 的接手与理解（旧结构审阅续接）', units: '页结构' },
   };
   const next = NEXT_STEP[submission.review_kind] || null;
   receipt.units = { count: Array.isArray(submission.decisions) ? submission.decisions.length : 0,

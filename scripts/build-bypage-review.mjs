@@ -29,6 +29,7 @@ const reviewKind = kind === 'sample' ? 'bypage_sample' : 'bypage';
 // 上一轮**人**做过的决定（只在同一个面之间带）。读不到＝第一轮，行为与原来完全一致。
 const priorRound = readPriorRound(args['--previous'] ? resolve(args['--previous']) : null, reviewKind);
 if (kind === 'final' && !args['--assets']) throw new Error('完整 By-page 终审必须提供 --assets，并通过图片视觉检查门禁');
+if (kind === 'final' && !args['--audit']) throw new Error('完整 By-page 终审必须提供当前正式稿的 --audit');
 const copyRaw = readFileSync(copyPath, 'utf8');
 const validation = spawnSync(process.execPath, [resolve(dirname(fileURLToPath(import.meta.url)), 'validate-bypage.mjs'), copyPath], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
 if (validation.status !== 0) throw new Error('逐页稿验证失败：' + (validation.stdout || validation.stderr));
@@ -52,7 +53,10 @@ if (args['--audit']) {
   auditRaw = readFileSync(auditPath, 'utf8');
   audit = JSON.parse(auditRaw);
 }
-const sourceSha256 = createHash('sha256').update(copyRaw).update('\n---FACT-AUDIT---\n').update(auditRaw).digest('hex');
+const assetManifestPath = args['--assets'] ? resolve(args['--assets']) : null;
+const assetRaw = assetManifestPath ? readFileSync(assetManifestPath, 'utf8') : '';
+const sourceSha256 = createHash('sha256').update(copyRaw).update('\n---FACT-AUDIT---\n').update(auditRaw)
+  .update(assetManifestPath ? '\n---ASSET-MANIFEST---\n' + assetRaw : '').digest('hex');
 const auditByPage = new Map();
 // fact-audit/1.0.0 的疑点清单带 location.page；按页归组给审阅页展示
 for (const suspect of audit.suspects || []) {
@@ -112,8 +116,9 @@ const pages = splitPages(copyRaw).map(({ frontmatter, body }) => {
   };
 });
 const recheckPages = pages.filter(page => page.requires_recheck);
-const context = writeReviewContext(dirname(outputPath),{type:'copy',reviewKind,sourceSha256,pages,sections:[],imageMap,
-  files:[{path:copyPath,sha256:sha256(copyRaw)},...(args['--audit'] ? [{path:resolve(args['--audit']),sha256:sha256(auditRaw)}] : [])]});
+const context = writeReviewContext(dirname(outputPath),{type:'copy',reviewKind,sourceSha256,pages,sections:[],imageMap,assetManifestPath,
+  files:[{path:copyPath,sha256:sha256(copyRaw)},...(args['--audit'] ? [{path:resolve(args['--audit']),sha256:sha256(auditRaw)}] : []),
+    ...(args['--assets'] ? [{path:resolve(args['--assets']),sha256:sha256(readFileSync(resolve(args['--assets'])))}] : [])]});
 const html = renderPageReviewHtml({
   reviewKind,
   title: kind === 'sample' ? '代表性样页校准' : '完整 By-page 图文审阅',

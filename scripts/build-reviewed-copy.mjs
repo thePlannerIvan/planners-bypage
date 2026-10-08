@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import {
-  copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync,
+  copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync,
 } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import {
@@ -8,6 +8,7 @@ import {
 } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {copyScalar} from './lib/copy-scalars.mjs';
+import { createHash } from 'node:crypto';
 
 function argsOf(argv) {
   const out = {};
@@ -85,6 +86,27 @@ const manifestPath = resolve(args['--manifest']);
 const outputPath = resolve(args['--output']);
 const assetsDir = resolve(args['--assets-dir']);
 const scriptDir = dirname(fileURLToPath(import.meta.url));
+const audit = JSON.parse(readFileSync(auditPath, 'utf8'));
+const contextPath = resolve(dirname(feedbackPath), 'review-context.json');
+if (existsSync(contextPath)) {
+  const context = JSON.parse(readFileSync(contextPath, 'utf8'));
+  const reviewedManifest = (context.files || []).find(file => resolve(file.path) === manifestPath);
+  if (!reviewedManifest || reviewedManifest.sha256 !== createHash('sha256').update(readFileSync(manifestPath)).digest('hex')) {
+    throw new Error('资产清单已变化或不属于本轮审阅，需检查内容并重新审阅');
+  }
+}
+const identity = path => existsSync(path) ? realpathSync(path) : path;
+const protectedPaths = [copyPath, auditPath, feedbackPath, manifestPath,
+  resolve(dirname(auditPath), audit.source_index?.path || '.')].map(identity);
+if (protectedPaths.includes(identity(outputPath))
+  || protectedPaths.includes(identity(resolve(assetsDir, 'asset-manifest.json')))) {
+  throw new Error('交付输出不能覆盖活动稿、核查、反馈、资产清单或来源索引');
+}
+const copyValidation = spawnSync(process.execPath, [resolve(scriptDir, 'validate-bypage.mjs'), copyPath], { encoding: 'utf8' });
+if (copyValidation.status !== 0) throw new Error(`正式稿格式无效：${copyValidation.stdout || copyValidation.stderr}`);
+if ((audit.suspects || []).some(item => ['confirmed', 'no_source'].includes(item.verdict))) {
+  throw new Error('事实仍有待改或无来源项，先修正、补证或由用户逐项裁定边界后续检');
+}
 const auditValidation = spawnSync(process.execPath, [
   resolve(scriptDir, 'validate-fact-audit.mjs'),
   '--audit', auditPath, '--copy', copyPath, '--allow-human-review', 'true',

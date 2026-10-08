@@ -47,9 +47,9 @@ for (const decision of feedback.decisions || []) {
         processing_level: 'none',
         processing_notes: '',
         visual_check: {
-          status: 'passed',
-          method: 'user-review-upload',
-          notes: '用户在审阅页面主动上传并指定为页面素材。',
+          status: 'pending',
+          method: '',
+          notes: '审阅上传已登记，尚待检查图片内容。',
         },
         width: null,
         height: null,

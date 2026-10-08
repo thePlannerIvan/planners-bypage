@@ -14,6 +14,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { moduleScript } from './lib/planners-modules.mjs';
+import { copyPageNumbers } from './lib/copy-pages.mjs';
 
 function argsOf(argv) {
   const out = {};
@@ -50,9 +51,16 @@ if (audit.artifact?.sha256 !== copyHash) {
 }
 
 const suspects = audit.suspects || [];
+const pages = copyPageNumbers(readFileSync(copyPath, 'utf8'));
+for (const suspect of suspects) {
+  if (['confirmed', 'accepted_with_caveat', 'no_source'].includes(suspect.verdict)
+    && !pages.includes(suspect.location?.page)) {
+    errors.push(`[suspect_page_missing] ${suspect.id} 必须定位到正式稿中的真实页码`);
+  }
+}
 const pageOf = s => (Number.isInteger(s.location?.page) ? Number(s.location.page) : null);
 const humanReviewRequired = suspects
-  .filter(s => s.verdict === 'confirmed' || s.verdict === 'accepted_with_caveat')
+  .filter(s => ['confirmed', 'accepted_with_caveat', 'no_source'].includes(s.verdict))
   .map(s => ({ id: s.id, page_number: pageOf(s), surface: s.surface, kind: s.kind, verdict: s.verdict, note: s.note || '' }));
 
 const allowHumanReview = args['--allow-human-review'] === 'true';

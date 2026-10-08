@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { assert, jsonOutput, pass, runNode } from '../lib/assert.mjs';
 import { moduleScript } from '../../scripts/lib/planners-modules.mjs';
+import { writeAuditFixture } from '../lib/audit-fixture.mjs';
 
 // 宿主生命周期只有一份（公共模组的 Node CLI）——测试 import 它来收干净，不重写判据。
 const { hostAlive, hostState, stopHost } = await import(moduleScript('planners-review-core', 'scripts/review-host.mjs'));
@@ -21,7 +22,7 @@ runNode(join(root, 'scripts/import-review-assets.mjs'), ['--feedback', feedback,
 const updated = JSON.parse(readFileSync(manifest, 'utf8'));
 assert(updated.assets.length === 1 && updated.assets[0].status === 'selected', '审阅上传必须正式进入 Asset Manifest');
 assert(updated.assets[0].source_sha256 === createHash('sha256').update(data).digest('hex'), '导入资产必须记录真实 Hash');
-assert(updated.assets[0].visual_check.status === 'passed', '用户上传图片必须记录视觉确认状态');
+assert(updated.assets[0].visual_check.status === 'pending', '上传只登记，不伪造视觉确认');
 assert(jsonOutput(runNode(join(root, 'scripts/validate-asset-manifest.mjs'), [manifest])).valid, '导入后的 Manifest 必须通过复算');
 
 /* ------------------------------------------------------------------ *
@@ -64,7 +65,7 @@ main_message: "上传的图必须能被收件"
 const liveManifest = join(temp, 'live-asset-manifest.json');
 writeFileSync(liveManifest, JSON.stringify({ contract_version: 'asset-manifest/1.1.0', asset_root: 'assets', assets: [] }, null, 2));
 const live = jsonOutput(runNode(join(root, 'scripts/start-bypage-review.mjs'), [
-  '--copy', liveDraft, '--assets', liveManifest, '--review-dir', liveDir,
+  '--copy', liveDraft, '--audit', writeAuditFixture(temp, liveDraft), '--assets', liveManifest, '--review-dir', liveDir,
   '--final-md', join(temp, 'deliverable', 'by-page.md'), '--kind', 'final', '--port', '0', '--no-open',
 ]));
 // 上传走宿主声明的那条能力（surface 里的 capabilities: ['asset-upload']）：

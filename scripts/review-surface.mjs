@@ -41,7 +41,7 @@ export const SURFACES = {
     description: '逐页看完整图文稿：默认通过，只标记有问题的页；事实例外与上一轮要求修改的页必须明确选择。',
     wake: '逐页审阅有新的提交（{unit}）：先跑 scripts/review-inbox.mjs 收件'
       + '（它会把这份提交翻译成 review-feedback.json 并追加 history/round-NN.json），'
-      + '再按 stages/07-fact-audit-review.md 处理。',
+      + '再按 SKILL.md 的核查与完整图文审阅 处理。',
   },
   storyline: {
     id: 'planners-bypage/storyline',
@@ -49,7 +49,7 @@ export const SURFACES = {
     description: '一起判断章节推进、页面任务与图片候选；默认通过，改过图片或写过反馈的页自动转为需要修改。',
     wake: 'Storyline 审阅有新的提交（{unit}）：先跑 scripts/review-inbox.mjs 收件'
       + '（它会把这份提交翻译成 review-feedback.json 并追加 history/round-NN.json），'
-      + '再按 stages/04-storyline-review.md 处理，并按需要用 import-review-assets.mjs 把上传图写进 Asset Manifest。',
+      + '再按 SKILL.md 的接手与理解（旧结构审阅续接） 处理，并按需要用 import-review-assets.mjs 把上传图写进 Asset Manifest。',
   },
 };
 
@@ -99,7 +99,9 @@ export function surfaceDocument(reviewDir, { surface = 'bypage', title, descript
     entry: 'index.html',
     feedback: SUBMISSIONS_REL,
     draft: existsSync(join(reviewDir,'review-context.json')) ? JSON.parse(readFileSync(join(reviewDir,'review-context.json'),'utf8')).draftPath || 'draft.json' : 'draft.json',
-    wake: { mode: 'queue', text: spec.wake },
+    // 唤醒走**插话**（steer → next-step）：提交的语义是"现在就改"。`queue` 会排到当前回合之后，
+    // 模型正忙时它躺在持久队列里，界面上同时出现「已送达」与「排队中」两份。
+    wake: { mode: 'steer', text: spec.wake },
     // 页面要往审阅目录里上传替换图片（宿主必须做包含性校验）。声明为空就是为空。
     capabilities: ['asset-upload','draft'],
     watch: ['review-snapshot.json'],

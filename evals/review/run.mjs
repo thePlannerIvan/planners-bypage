@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { assert, jsonOutput, pass, runNode } from '../lib/assert.mjs';
 import { moduleScript } from '../../scripts/lib/planners-modules.mjs';
+import { writeAuditFixture } from '../lib/audit-fixture.mjs';
 
 // 宿主生命周期只有一份：公共模组的 Node CLI。测试**不重写**任何判据，只 import 它来收干净。
 const { hostAlive, hostState, stopHost } = await import(moduleScript('planners-review-core', 'scripts/review-host.mjs'));
@@ -74,7 +75,7 @@ assert(receipt1.imported && receipt1.imported.round === 'history/round-01.json'
 assert(jsonOutput(runNode(join(root, 'scripts/validate-storyline-review-feedback.mjs'), [
   '--feedback', live.feedback_path, '--architecture', architecturePath, '--assets', manifestPath,
 ])).valid, 'Storyline 反馈必须绑定当前架构和 Asset Manifest');
-assert(receipt1.units && receipt1.units.label === '页结构' && /stages\/04-storyline-review\.md/.test(receipt1.next_action_zh),
+assert(receipt1.units && receipt1.units.label === '页结构' && receipt1.next_action_zh.includes('旧结构审阅续接'),
   'storyline 的收件收据必须指 storyline 自己的下一步（曾经写死成逐页面的 stages/07）', receipt1.next_action_zh);
 /* ---- 验证 12/13：页面必须能"没有桥也把自己画出来" ----
    两个面共用同一份页面，所以这一条一次覆盖两家。
@@ -131,11 +132,12 @@ main_message: "图片必须在审阅页面出现"
 
 - src-doc
 `);
-runNode(join(root, 'scripts/build-bypage-review.mjs'), ['--copy', bypage, '--output', join(bypageDir, 'index.html'), '--assets', manifestPath, '--kind', 'final']);
+const bypageAudit = writeAuditFixture(temp, bypage);
+runNode(join(root, 'scripts/build-bypage-review.mjs'), ['--copy', bypage, '--audit', bypageAudit, '--output', join(bypageDir, 'index.html'), '--assets', manifestPath, '--kind', 'final']);
 const bypageHtml = readFileSync(join(bypageDir, 'index.html'), 'utf8');
 assert(bypageHtml.includes('完整 By-page 图文审阅') && bypageHtml.includes('assets/page.png') && existsSync(join(bypageDir, 'assets/page.png')), 'By-page Review 必须渲染并本地化图片');
 const bypageLive = jsonOutput(runNode(join(root, 'scripts/start-bypage-review.mjs'), [
-  '--copy', bypage, '--assets', manifestPath, '--review-dir', join(temp, 'bypage-live'), '--kind', 'final', '--port', '0', '--no-open',
+  '--copy', bypage, '--audit', bypageAudit, '--assets', manifestPath, '--review-dir', join(temp, 'bypage-live'), '--kind', 'final', '--port', '0', '--no-open',
 ]));
 const bypageLiveHtml = await (await fetch(bypageLive.url)).text();
 assert(/id="reload"/.test(bypageLiveHtml), 'R11：逐页面 serve 出去的页面上也有永久刷新出口');
@@ -147,11 +149,11 @@ const bypageSaved = await submitToHost(bypageLive, {
 });
 assert(bypageSaved, '真实审阅宿主必须保存反馈');
 const bypageReceipt = readInbox(bypageLive);
-assert(bypageReceipt.units && bypageReceipt.units.label === '页' && /stages\/07-fact-audit-review\.md/.test(bypageReceipt.next_action_zh),
+assert(bypageReceipt.units && bypageReceipt.units.label === '页' && bypageReceipt.next_action_zh.includes('核查与完整图文审阅'),
   '逐页面的收件收据指它自己的下一步（下一步按面给）', bypageReceipt.next_action_zh);
 assert(bypageReceipt.ok && bypageReceipt.imported.pages === 1, '收件必须把提交翻译成原生记录');
 assert(jsonOutput(runNode(join(root, 'scripts/validate-review-feedback.mjs'), [
-  '--feedback', bypageLive.feedback_path, '--copy', bypage, '--kind', 'final',
+  '--feedback', bypageLive.feedback_path, '--copy', bypage, '--audit', bypageAudit, '--kind', 'final',
 ])).valid, 'By-page 反馈必须绑定当前文案');
 // 收件幂等：同一份提交再收一次是空操作，不新增轮次
 const again = readInbox(bypageLive);
@@ -199,7 +201,7 @@ const readServed = async (live) => {
   return { html: served, data: JSON.parse(served.match(/<script id="reviewData" type="application\/json">([\s\S]*?)<\/script>/)?.[1] || '{}') };
 };
 const startRecheck = () => jsonOutput(runNode(join(root, 'scripts/start-bypage-review.mjs'), [
-  '--copy', recheckDraft, '--assets', manifestPath, '--review-dir', recheckDir, '--kind', 'final', '--port', '0', '--no-open',
+  '--copy', recheckDraft, '--audit', writeAuditFixture(temp, recheckDraft), '--assets', manifestPath, '--review-dir', recheckDir, '--kind', 'final', '--port', '0', '--no-open',
 ]));
 
 const liveRound1 = await startRecheck();
@@ -239,7 +241,7 @@ assert(await submitToHost(liveRound2, {
   saved_at: new Date().toISOString(), overall_decision: 'approve', overall_feedback_zh: '整体没问题。', decisions: overallOnly,
 }) && readInbox(liveRound2).ok, '审阅宿主原样落盘（它不解释形状）');
 assert(jsonOutput(runNode(join(root, 'scripts/validate-review-feedback.mjs'), [
-  '--feedback', join(recheckDir, 'review-feedback.json'), '--copy', recheckDraft, '--kind', 'final',
+  '--feedback', join(recheckDir, 'review-feedback.json'), '--copy', recheckDraft, '--audit', `${recheckDraft}.fact-audit.json`, '--kind', 'final',
 ], { allowFailure: true })).valid === false,
   '兜底：漏掉"上一轮要求修改"那页的提交必须被 Validator 拦下，不许变成一份"全通过"的记录');
 
@@ -277,7 +279,7 @@ pass('重出审阅页不许重置人的决定（逐页决定 + 逐张图片）')
 //    加上"输出里没有 url"，就是外面能观察到的最强形式。
 const quietDir = join(temp, 'quiet');
 const quiet = jsonOutput(runNode(join(root, 'scripts/start-bypage-review.mjs'), [
-  '--copy', bypage, '--assets', manifestPath, '--review-dir', quietDir, '--kind', 'final', '--surface-only',
+  '--copy', bypage, '--audit', bypageAudit, '--assets', manifestPath, '--review-dir', quietDir, '--kind', 'final', '--surface-only',
 ]));
 assert(quiet.status === 'surface_ready' && quiet.host_started === false && !quiet.url,
   '--surface-only 必须只报 surface 的绝对路径（不起宿主、不开浏览器）');

@@ -1,0 +1,59 @@
+{
+  "test_only": true,
+  "method": "Independent Agent compared the entire artifact to the entire source; findings were not inferred from enumerate-surface class_hint.",
+  "suspects": [
+    {
+      "id": "s-denominator",
+      "surface": "65%的消费者会复购。",
+      "location": { "page": 1, "line": 5 },
+      "kind": "strengthened",
+      "class": "derived",
+      "verdict": "confirmed",
+      "finding": "计算结果65%正确，但分母从中国120名访问客户改为消费者整体，复购意愿被改写为实际行为预测。",
+      "check": { "numerator": "78名愿意复购", "denominator": "中国120名访问客户", "recomputed": "65%", "agrees": true },
+      "evidence": { "source_id": "src-fixture", "anchor": { "kind": "heading", "value": "Survey" }, "excerpt": "2024 年，乙公司访问了中国的 120 名受访客户，其中 78 名表示愿意复购。78 / 120 = 65%。这只是该访问样本中的复购意愿，不代表所有消费者，也不是实际复购率。" },
+      "decided_by": "agent",
+      "note": "恢复样本分母、地区和意愿口径，不写成所有消费者的实际复购行为。"
+    },
+    {
+      "id": "s-condition",
+      "surface": "新的处理方案降低处理时间。",
+      "location": { "page": 2, "line": 9 },
+      "kind": "strengthened",
+      "class": "quoted",
+      "verdict": "confirmed",
+      "finding": "原文的培训前提、可能性和尚未开展对比试验均被删除，工作假设变成已证实的效果。",
+      "evidence": { "source_id": "src-fixture", "anchor": { "kind": "heading", "value": "Pilot hypothesis" }, "excerpt": "若试点团队先完成培训，新的处理方案可能降低处理时间；尚未开展对比试验。" },
+      "decided_by": "agent",
+      "note": "恢复培训前提、可能性与尚未对比试验的边界。"
+    },
+    {
+      "id": "s-subject",
+      "surface": "甲公司访问了中国的120名受访客户，其中78名表示愿意复购。",
+      "location": { "page": 3, "line": 13 },
+      "kind": "mismatch",
+      "class": "quoted",
+      "verdict": "confirmed",
+      "finding": "样本数量没有变，调查主体从乙公司错误改为未参与调查的甲公司。",
+      "evidence": { "source_id": "src-fixture", "anchor": { "kind": "heading", "value": "Survey" }, "excerpt": "2024 年，乙公司访问了中国的 120 名受访客户，其中 78 名表示愿意复购。" },
+      "decided_by": "agent",
+      "note": "将调查主体改回乙公司。"
+    },
+    {
+      "id": "s-date",
+      "surface": "乙公司在2025年10月8日发布了这份试点方案。",
+      "location": { "page": 4, "line": 17 },
+      "kind": "mismatch",
+      "class": "quoted",
+      "verdict": "confirmed",
+      "finding": "发布日期年份从2024改成2025；这里年份是真实待核事实，不是页码或型号。",
+      "evidence": { "source_id": "src-fixture", "anchor": { "kind": "heading", "value": "Publication" }, "excerpt": "乙公司在 2024 年 10 月 8 日发布了这份试点方案。甲公司未参与本调研或发布。" },
+      "decided_by": "agent",
+      "note": "将日期恢复为2024年10月8日。"
+    }
+  ],
+  "clean": {
+    "page": 5,
+    "result": "No suspect: subject, 78/120=65%, geography, sample boundary and purchase-intention definition all remain faithful to the source."
+  }
+}

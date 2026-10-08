@@ -74,6 +74,7 @@ if (!args['--source-index']) throw new Error('用法：prepare-audit-sources.mjs
 const indexPath = resolve(args['--source-index']);
 const indexDir = dirname(indexPath);
 const index = JSON.parse(readFileSync(indexPath, 'utf8'));
+const originalIndex = JSON.stringify(index);
 const sourceRoot = resolve(indexDir, index.source_root || '.');
 const outputDir = resolve(indexDir, 'audit-sources');
 mkdirSync(outputDir, { recursive: true });
@@ -121,10 +122,13 @@ if (selectedId && !(index.sources || []).some(source => source.source_id === sel
   throw new Error(`source-index 中不存在 ${selectedId}`);
 }
 index.contract_version = 'source-index/2.0.0';
-delete index.index_sha256;   // 内容变了，旧版本锚作废；由校验器的 --stamp 重新盖
-writeFileSync(indexPath, `${JSON.stringify(index, null, 2)}\n`);
+const changed = JSON.stringify(index) !== originalIndex;
+if (changed) {
+  delete index.index_sha256;
+  writeFileSync(indexPath, `${JSON.stringify(index, null, 2)}\n`);
+}
 // 提示：这些来源的覆盖状态不是 full，按契约必须在 blind_spots 里各自有一条（语义由模型写，脚本只点名）
 const needsBlindSpots = (index.sources || [])
   .filter(source => source.coverage && source.coverage.status !== 'full')
   .map(source => source.source_id);
-process.stdout.write(`${JSON.stringify({ valid: true, processed, reused, needs_blind_spots: needsBlindSpots, source_index: indexPath, audit_sources_dir: outputDir })}\n`);
+process.stdout.write(`${JSON.stringify({ valid: true, processed, reused, changed, needs_blind_spots: needsBlindSpots, source_index: indexPath, audit_sources_dir: outputDir })}\n`);

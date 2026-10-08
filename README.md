@@ -4,7 +4,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-2563eb)](LICENSE)
 [![Validation](https://github.com/thePlannerIvan/planners-bypage/actions/workflows/validate.yml/badge.svg)](https://github.com/thePlannerIvan/planners-bypage/actions/workflows/validate.yml)
 
-Planners Bypage 是一个轻量的前置 Skill：它把 Word、PDF、Markdown、PPT、表格和图片资料，整理成经过 Storyline 和逐页审阅、且可回溯的 PPT By-page 内容包。
+Planners Bypage 将已批准的 Storyline 展开成完整页面，或把多源资料组织成页面，经事实核查和完整图文审阅后交给 PPT 制作。
 
 **它不制作 PPTX。** By-page 完成后，请使用 [Planner's PPT Hell](https://github.com/thePlannerIvan/planners-ppt-hell) 完成模板、Layout、SVG、视觉审阅和可编辑 PowerPoint 导出。
 
@@ -12,11 +12,11 @@ Planners Bypage 是一个轻量的前置 Skill：它把 Word、PDF、Markdown、
 
 ## 它解决什么
 
-把“读一堆资料，然后凭印象写 PPT”变成一条有人机确认点、有图片预处理、有来源索引和事实审计的简洁流程：
+两条入口共用一条内容流程，来源、项目记忆和核查记录可以顺序承接：
 
 ```text
-来源覆盖 → 集中选择 → Storyline → 图文结构审阅
-→ 逐页材料包 → 图片处理 → By-page → 事实审计与终审
+接手与理解 → 页面展开与取材 → 完整逐页稿
+→ 独立核查 + 完整图文审阅 ↔ 修改 → PPT 交接
 ```
 
 它允许重组和改写，但不得改变来源中的事实、数字、符号和限定条件。
@@ -26,7 +26,7 @@ Planners Bypage 是一个轻量的前置 Skill：它把 Word、PDF、Markdown、
 适合：
 
 - 资料来自多个文档，需要先筛选再组织；
-- 需要先确认 Storyline，再逐页审阅；
+- 已有 Storyline 需要展开，或直接将资料组织成完整页面；
 - 数字、引用、表格和衍生公式需要回到来源审计；
 - 原始图片需要筛选、裁剪、校验并随 By-page 交付。
 
@@ -51,7 +51,8 @@ npx skills add https://github.com/thePlannerIvan/planners-bypage --skill planner
 - [`planners-review-core`](https://github.com/thePlannerIvan/planners-review-core) —— 审阅面契约、桥与本地宿主
 - [`planners-source-index`](https://github.com/thePlannerIvan/planners-source-index) —— 来源索引契约与唯一校验器
 - [`planners-fact-check`](https://github.com/thePlannerIvan/planners-fact-check) —— 事实核查契约与校验器
-- [`planners-report-kit`](https://github.com/thePlannerIvan/planners-report-kit) —— 报告装配与校验（仅带报告出口的 Skill 需要）
+
+写作使用 `slide-copy`，叙事需要时使用 `storytelling`；方法查询沿用 Proposal 的 Method Wiki 入口。方法 Skill 在当前环境缺失时如实报告，不把公共模组安装器当成它们的安装入口。
 
 某个模组不在本地时，本 Skill 的适配器会**自动从 GitHub 装它**，不需要手动准备。适配器找的地方按顺序：
 
@@ -124,15 +125,11 @@ git clone https://github.com/thePlannerIvan/planners-bypage.git ~/.claude/skills
 ## 使用
 
 ```text
-使用 $planners-bypage，读取这些项目资料，和我确认 Storyline，
-再交付 by-page.md 与完整图片资产。
+使用 $planners-bypage，接收已有 Storyline 或整理这些资料，
+展开完整逐页内容，核查并审阅后交付 by-page.md 与图片资产。
 ```
 
-默认有三类人机确认：
-
-1. **集中选择**：确认目标、受众、篇幅、改写强度和资料取舍，并留一轮自由补充意见；
-2. **Storyline Review**：审阅章节、页级主张、来源和候选图片；
-3. **By-page Review**：审阅每页标题、内容、事实状态和已处理图片。
+默认直接审阅完整 By-page。已有用户决定继续沿用；关键选择仍需用户裁定。旧 Storyline/sample 审阅 CLI 保留用于已有项目续接，不是新项目的常规审批关卡。
 
 ## 交付边界
 
@@ -144,20 +141,18 @@ deliverable/
 └── assets/             # 已确认、已处理的图片资产
 ```
 
-过程目录 `.bypage-work/` 保留 Source Index、Page Material Packs、Asset Manifest、审阅反馈和事实审计记录，但不应随一般公开仓库提交。
+过程目录保留工作结构、材料包、资产清单、审阅反馈和事实核查。项目记忆与来源索引沿用最早阶段的活动原件，可能在 `.proposal-work`，不重复创建。完整交接见 [内容交接](references/content-handoff.md)。这些项目材料不应提交到公开 Skill 仓库。
 
 ## 目录结构
 
 ```text
 planners-bypage/
 ├── SKILL.md
-├── WORKFLOW.md
 ├── agents/openai.yaml
 ├── contracts/           # 页面架构、材料包、资产清单契约
-├── evals/               # 结构 / 审阅 / 图片 / 事实核查 / 交付五套公开测试
-├── references/          # 逐页写作、图片生命周期、来源阅读、提案语言
+├── evals/               # 结构 / 审阅 / 图片 / 事实核查 / 交付回归
+├── references/          # 内容交接、图片生命周期、来源阅读与维护架构
 ├── scripts/             # 校验器、审阅接缝、资产导入与终稿装配
-├── stages/              # 01–08 分阶段工作流
 └── templates/           # source-index / page-architecture / asset-manifest / by-page
 ```
 
@@ -167,7 +162,7 @@ planners-bypage/
 - Page Material Packs 限定每页可用的事实、引用、图片和限制；
 - 事实审计检查实际使用的数字、表格、衍生公式、符号和条件；
 - Asset Manifest 绑定原图、处理图、裁剪参数、内容视觉验证和双 Hash；
-- Storyline Review 和 By-page Review 都绑定当前 Contract 版本，避免旧反馈误应用到新稿。
+- 完整稿反馈绑定当前正文与事实核查，避免旧批准用于新稿；结构批准不冒充完整稿批准。
 
 ## 开发与验证
 
