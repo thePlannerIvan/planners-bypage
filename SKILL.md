@@ -64,13 +64,7 @@ node "<Skill>/scripts/validate-source-index.mjs" "<I>" --stamp
 
 每页明确观众需要理解什么、凭什么成立、适合怎样表达。把判断发展成具体事实、解释、比较、案例、图表、流程或行动；一个判断可由多页证明，取材不足时回源、补证或保留边界。
 
-需要组织叙事推进时读取 `storytelling`；页面角色、标题链与内容组织读取 `slide-copy`。具体论证或页面组织卡住时查询共用 Method Wiki：按名称找到 `planners-proposal-system`，其目录记为 `<Proposal>`；`<Wiki>` 使用项目指定的方法库，未指定时使用 `<Proposal>/proposal-library-maintenance/base-wiki`。
-
-```bash
-node "<Proposal>/proposal-library-maintenance/scripts/query-wiki.mjs" --wiki-dir "<Wiki>" --query "<具体问题或关键词>" --limit 5
-```
-
-读取相关 Lens 的操作、适用条件和局限，只采用能改善本项目的方法。零结果时继续依据材料推进，库不可用时说明缺失；此入口不查询 Recipe，也不维护 Wiki。
+需要组织叙事推进时读取 `storytelling`；页面角色、标题链与内容组织读取 `slide-copy`。先承接项目记忆中的已采用方法；出现新的论证或页面组织问题时读取并调用 `planners-method-wiki`，传入当前问题、可用材料和同一份项目记忆。没有 Proposal 时也直接调用该独立 Skill；方法库选择、Lens / Recipe 检索及采用记录遵循其入口，查询不重建项目来源索引。
 
 按 `templates/page-architecture.json` 和 `contracts/page-architecture.schema.json` 维护活动页面工作结构 `<A>`。Proposal 首次交接先用上游校验器验证结构和批准反馈，然后转换字段：
 

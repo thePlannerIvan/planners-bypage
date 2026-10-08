@@ -1,15 +1,17 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { assert, jsonOutput, pass, runNode } from '../lib/assert.mjs';
+import { moduleScript } from '../../scripts/lib/planners-modules.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const skill = readFileSync(join(root, 'SKILL.md'), 'utf8');
 assert(skill.includes('name: planners-bypage'), 'frontmatter 必须使用 planners-bypage');
 assert(skill.includes('$planners-ppt-hell'), '必须明确交给下游 PPT Skill');
-assert(skill.includes('query-wiki.mjs') && skill.includes('slide-copy'), '具体方法必须有可调用入口');
+assert(skill.includes('planners-method-wiki') && skill.includes('slide-copy'), '具体方法由独立 Skill 提供');
+assert(existsSync(moduleScript('planners-method-wiki', 'scripts/query-wiki.mjs')), 'Wiki 的实际查询入口可解析');
 assert(skill.includes('活动文件与归属') && skill.includes('没有才新建'), '两入口必须区分复用与新建');
 assert(skill.includes('调用与续检') && !skill.includes('子代理复用（调用方）'), '核查代理规则由 Fact Check 拥有');
 const handoff = readFileSync(join(root, 'references/content-handoff.md'), 'utf8');
