@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { moduleScript } from './planners-modules.mjs';
+import {reviewSourceHash} from './review-source-hash.mjs';
 const {sha256, contentHash, validateChanges, writeReviewContext} = await import(pathToFileURL(moduleScript('planners-review-core','scripts/content-review-contract.mjs')));
 export {sha256, contentHash, writeReviewContext};
 
@@ -61,11 +62,11 @@ export function prepareEdits(submission, reviewDir) {
     || JSON.stringify(changes.page_order) !== JSON.stringify(context.pages.map(p => p.page_number))
     || JSON.stringify(changes.section_order) !== JSON.stringify(context.sections.map(s => s.section_id));
   const output = !altered ? raw : context.type === 'architecture' ? applyStructure(raw,changes) : applyCopy(raw,changes,context);
-  const separator = context.type === 'architecture' ? '\n---ASSET-MANIFEST---\n' : '\n---FACT-AUDIT---\n';
   const dependency = context.files[1] ? readFileSync(context.files[1].path,'utf8') : '';
-  const assets = context.type === 'copy' && context.assetManifestPath
-    ? '\n---ASSET-MANIFEST---\n' + readFileSync(context.assetManifestPath, 'utf8') : '';
-  const sourceHash = sha256(output+separator+dependency+assets);
+  const sourceHash = context.type === 'architecture'
+    ? sha256(output+'\n---ASSET-MANIFEST---\n'+dependency)
+    : reviewSourceHash({copy: output, audit: dependency,
+      manifest: context.assetManifestPath ? readFileSync(context.assetManifestPath, 'utf8') : null});
   return {context,changes,source,raw,next:output,changed:output !== raw,sourceHash,
     mapping:new Map(changes.page_order.map((id,i) => [Number(id),i+1]))};
 }

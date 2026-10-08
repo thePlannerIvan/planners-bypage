@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { moduleScript } from './lib/planners-modules.mjs';
 import { copyPageNumbers } from './lib/copy-pages.mjs';
+import {reviewSourceHash} from './lib/review-source-hash.mjs';
 
 function argsOf(argv) {
   const out = {};
@@ -51,15 +51,26 @@ try {
   process.exit(2);
 }
 const errors = [];
-let assetBinding = '';
+let assetManifestPath = args['--manifest'] ? resolve(args['--manifest']) : null;
 const contextPath = resolve(dirname(resolve(args['--feedback'])), 'review-context.json');
 if (existsSync(contextPath)) {
   try {
     const context = JSON.parse(readFileSync(contextPath, 'utf8'));
-    if (context.assetManifestPath) assetBinding = '\n---ASSET-MANIFEST---\n' + readFileSync(context.assetManifestPath, 'utf8');
+    if (context.assetManifestPath) {
+      const reviewedPath = resolve(context.assetManifestPath);
+      if (assetManifestPath && reviewedPath !== assetManifestPath) {
+        throw new Error('资产清单与审阅上下文不一致');
+      }
+      assetManifestPath = reviewedPath;
+    }
   } catch (error) { errors.push(`审阅资产上下文不可读：${error.message}`); }
 }
-const expectedHash = createHash('sha256').update(copyRaw).update('\n---FACT-AUDIT---\n').update(auditRaw).update(assetBinding).digest('hex');
+let manifestRaw = null;
+if (assetManifestPath) {
+  try { manifestRaw = readFileSync(assetManifestPath, 'utf8'); }
+  catch (error) { errors.push(`资产清单不可读：${error.message}`); }
+}
+const expectedHash = reviewSourceHash({copy: copyRaw, audit: auditRaw, manifest: manifestRaw});
 if (feedback.contract_version !== '1.1.0') errors.push('contract_version 必须为 1.1.0');
 const expectedKind = kind === 'sample' ? 'bypage_sample' : 'bypage';
 if (feedback.review_kind !== expectedKind) errors.push('review_kind 不匹配');

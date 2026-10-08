@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, relative, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -8,6 +7,7 @@ import { renderPageReviewHtml } from './review/page-review-html.mjs';
 import { pageDefaults, readPriorRound, seedAssetDecisions } from './lib/prior-round.mjs';
 import {sha256,writeReviewContext} from './lib/review-edits.mjs';
 import {copyScalar} from './lib/copy-scalars.mjs';
+import {reviewSourceHash} from './lib/review-source-hash.mjs';
 
 function argsOf(argv) { const out = {}; for (let i = 0; i < argv.length; i += 2) out[argv[i]] = argv[i + 1]; return out; }
 function clean(value) { return copyScalar(value); }
@@ -55,8 +55,7 @@ if (args['--audit']) {
 }
 const assetManifestPath = args['--assets'] ? resolve(args['--assets']) : null;
 const assetRaw = assetManifestPath ? readFileSync(assetManifestPath, 'utf8') : '';
-const sourceSha256 = createHash('sha256').update(copyRaw).update('\n---FACT-AUDIT---\n').update(auditRaw)
-  .update(assetManifestPath ? '\n---ASSET-MANIFEST---\n' + assetRaw : '').digest('hex');
+const sourceSha256 = reviewSourceHash({copy: copyRaw, audit: auditRaw, manifest: assetManifestPath ? assetRaw : null});
 const auditByPage = new Map();
 // fact-audit/1.0.0 的疑点清单带 location.page；按页归组给审阅页展示
 for (const suspect of audit.suspects || []) {

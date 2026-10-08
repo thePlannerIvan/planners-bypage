@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto';
+import {spawnSync} from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { assert, jsonOutput, pass, runNode } from '../lib/assert.mjs';
+import {reviewSourceHash} from '../../scripts/lib/review-source-hash.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const temp = mkdtempSync(join(tmpdir(), 'planners-bypage-handoff-'));
@@ -72,17 +74,30 @@ const auditRaw = readFileSync(audit, 'utf8');
 const feedback = join(temp, 'work/review-feedback.json');
 writeFileSync(feedback, JSON.stringify({
   contract_version: '1.1.0', review_kind: 'bypage',
-  source_sha256: createHash('sha256').update(readFileSync(copy)).update('\n---FACT-AUDIT---\n').update(auditRaw).digest('hex'),
+  source_sha256: reviewSourceHash({copy: readFileSync(copy, 'utf8'), audit: auditRaw, manifest: readFileSync(manifest, 'utf8')}),
   saved_at: new Date().toISOString(), overall_decision: 'approve', overall_feedback_zh: '',
   decisions: [{ page_number: 1, decision: 'approve', feedback_zh: '', attachments: [] }],
 }, null, 2));
 const deliverable = join(temp, 'deliverable/by-page.md');
 const assetsDir = join(temp, 'deliverable/assets');
-const built = jsonOutput(runNode(join(root, 'scripts/build-reviewed-copy.mjs'), ['--copy', copy, '--audit', audit, '--feedback', feedback, '--manifest', manifest, '--output', deliverable, '--assets-dir', assetsDir]));
+const memory = join(temp, 'work/project-memory.md');
+writeFileSync(memory, 'Handoff project memory');
+const production = join(temp, 'deliverable/production.json');
+const built = jsonOutput(runNode(join(root, 'scripts/build-reviewed-copy.mjs'), ['--copy', copy, '--audit', audit, '--feedback', feedback, '--manifest', manifest, '--output', deliverable, '--assets-dir', assetsDir, '--production-json', production, '--memory', memory, '--materials', materials]));
 assert(existsSync(deliverable), '必须生成 by-page.md');
 assert(existsSync(join(assetsDir, 'asset-manifest.json')) && existsSync(join(assetsDir, 'original/asset-image-image.png')), '必须交付图片和精简 Asset Manifest');
 assert(readFileSync(deliverable, 'utf8').includes('Speaker Notes') && readFileSync(deliverable, 'utf8').includes('Production Notes'), '下游需要的 Notes 不得丢失');
 assert(!readFileSync(deliverable, 'utf8').includes('assets/processed-image.png') && readFileSync(deliverable, 'utf8').includes('assets/processed/asset-image-processed-image.png'), 'Production Notes 中的资产路径必须重写为真实交付路径');
 assert(built.pages_with_assets === 1, 'pages_with_assets 必须统计 By-page 原有图片，而不只统计用户上传附件');
+const structured = JSON.parse(readFileSync(production, 'utf8'));
+assert(structured.pages[0].assets.length === 2, '结构化交付必须包含正文图和 Production Notes 引用的处理图');
+assert(structured.upstream.materials.sha256 && structured.upstream.memory.sha256, '共享记忆与材料保留路径/字节绑定');
+assert(structured.pages[0].identity.kind === 'numbered-baseline', '页号身份绑定当前稿，不猜测下一份稿的页号映射');
+const imported = spawnSync('python3', [resolve(root, '../../03-design-delivery/planners-ppt-hell/scripts/import_bypage.py'),
+  join(temp, 'ppt'), '--production', production], {encoding: 'utf8'});
+assert(imported.status === 0, '真实资产绑定反馈必须能由 PPT 适配器导入：' + imported.stderr);
+const pptContent = JSON.parse(readFileSync(join(temp, 'ppt/_internal/01_content/page_content.json'), 'utf8'));
+assert(pptContent.pages[0].page_key === structured.order[0] && pptContent.pages[0].source_assets.includes('asset-image'),
+  'Bypage 程序交付到 PPT 导入须保留页面与资产身份');
 assert(readFileSync(join(root, 'SKILL.md'), 'utf8').includes('$planners-ppt-hell'), '完成后必须提示下游 Skill');
 pass('干净交付与 planners-ppt-hell 衔接');

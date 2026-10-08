@@ -7,7 +7,8 @@ import {
   basename, dirname, join, relative, resolve,
 } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {copyScalar} from './lib/copy-scalars.mjs';
+import {pageNumber, scalar, section, splitPages} from './lib/bypage-copy.mjs';
+import {writeProductionExport} from './lib/production-export.mjs';
 import { createHash } from 'node:crypto';
 
 function argsOf(argv) {
@@ -15,26 +16,14 @@ function argsOf(argv) {
   for (let index = 0; index < argv.length; index += 2) out[argv[index]] = argv[index + 1];
   return out;
 }
-function splitPages(content) {
-  const normalized = content.replace(/\r\n/g, '\n');
-  return [...normalized.matchAll(/(?:^|\n)(---\n[\s\S]*?\n---\n[\s\S]*?)(?=\n---\ncontract_version:|$)/g)]
-    .map(match => match[1].trimEnd());
-}
-function pageNumber(page) {
-  return Number(page.match(/^page_number:\s*(\d+)\s*$/m)?.[1]);
-}
-function scalar(page, key) {
-  return copyScalar(page.match(new RegExp(`^${key}:\\s*(.*)$`, 'm'))?.[1]);
-}
-function section(page, name, nextName = null) {
-  const end = nextName ? `(?=\\n##\\s*${nextName})` : '$';
-  return page.match(new RegExp(`##\\s*${name}\\s*\\n([\\s\\S]*?)${end}`, 'i'))?.[1]?.trim() || '';
-}
 function safeName(value) {
   return basename(value).replace(/[^\p{L}\p{N}._-]+/gu, '-') || 'image';
 }
 function copyAsset(source, assetsDir, pageNumber, outputPath) {
   if (!existsSync(source)) return null;
+  if (realpathSync(source).split(/[\\/]/).some(part => part.startsWith('.env'))) {
+    throw new Error('Environment files cannot be copied into a production package');
+  }
   const pageDir = resolve(assetsDir, `page-${String(pageNumber).padStart(2, '0')}`);
   mkdirSync(pageDir, { recursive: true });
   let destination = resolve(pageDir, safeName(source));
@@ -79,6 +68,12 @@ const args = argsOf(process.argv.slice(2));
 for (const key of ['--copy', '--audit', '--feedback', '--manifest', '--output', '--assets-dir']) {
   if (!args[key]) throw new Error(`缺少 ${key}`);
 }
+for (const path of Object.values(args)) {
+  const canonical = existsSync(path) ? realpathSync(path) : String(path);
+  if (canonical.split(/[\\/]/).some(part => part.startsWith('.env'))) {
+    throw new Error('Environment files are not production inputs or outputs');
+  }
+}
 const copyPath = resolve(args['--copy']);
 const auditPath = resolve(args['--audit']);
 const feedbackPath = resolve(args['--feedback']);
@@ -117,6 +112,7 @@ if (auditValidation.status !== 0) {
 const feedbackValidation = spawnSync(process.execPath, [
   resolve(scriptDir, 'validate-review-feedback.mjs'),
   '--feedback', feedbackPath, '--copy', copyPath, '--audit', auditPath, '--kind', 'final',
+  ...(args['--production-json'] ? ['--manifest', manifestPath] : []),
 ], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
 if (feedbackValidation.status !== 0) {
   throw new Error(`终稿反馈无效，不能生成交付物：${feedbackValidation.stdout || feedbackValidation.stderr}`);
@@ -143,6 +139,9 @@ for (const asset of sourceManifest.assets || []) {
     if (!asset[field]) continue;
     const source = resolve(sourceAssetRoot, asset[field]);
     if (!existsSync(source)) throw new Error(`交付资产不存在：${asset[field]}`);
+    if (realpathSync(source).split(/[\\/]/).some(part => part.startsWith('.env'))) {
+      throw new Error('Environment files cannot be copied into a production package');
+    }
     const destinationDir = resolve(assetsDir, folder);
     mkdirSync(destinationDir, { recursive: true });
     const destination = resolve(destinationDir, `${asset.asset_id}-${safeName(source)}`);
@@ -214,6 +213,14 @@ const deliveredManifestValidation = spawnSync(process.execPath, [
 ], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
 if (deliveredManifestValidation.status !== 0) {
   throw new Error(`交付 Asset Manifest 无效：${deliveredManifestValidation.stdout || deliveredManifestValidation.stderr}`);
+}
+if (args['--production-json']) {
+  writeProductionExport({
+    output: args['--production-json'], memory: args['--memory'],
+    architecture: args['--architecture'], materials: args['--materials'],
+    copyPath, auditPath, feedbackPath, manifestPath, outputPath,
+    deliveredManifestPath, pages, outputPages,
+  });
 }
 process.stdout.write(`${JSON.stringify({
   valid: true,

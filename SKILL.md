@@ -156,11 +156,11 @@ node "<Skill>/scripts/validate-review-feedback.mjs" --feedback "<R>/review-feedb
 从当前批准版本生成交付，原有索引、材料包、核查与审阅记录保留在项目中：
 
 ```bash
-node "<Skill>/scripts/build-reviewed-copy.mjs" --copy "<D>" --audit "<F>" --feedback "<R>/review-feedback.json" --manifest "<V>" --output "<Project>/deliverable/by-page.md" --assets-dir "<Project>/deliverable/assets"
+node "<Skill>/scripts/build-reviewed-copy.mjs" --copy "<D>" --audit "<F>" --feedback "<R>/review-feedback.json" --manifest "<V>" --output "<Project>/deliverable/by-page.md" --assets-dir "<Project>/deliverable/assets" --production-json "<Project>/deliverable/production.json" --memory "<M>"
 ```
 
-检查返回的 `valid` 与输出，确认正文和制作说明中的图片路径可读、交付资产清单有效，必要内容与限定未在打包时丢失。在 `<M>` 记录本次制作快照对应的正式稿、核查、批准反馈和交付路径。交出 `by-page.md`、`assets/` 及其中资产清单的绝对路径，同时交出 `<M>`、`<I>`、正式稿、核查与反馈的原路径、已确认内容边界和重要盲区。
+检查返回的 `valid`、正文/制作说明图片路径和交付资产清单；在 `<M>` 记录本次基线对应的正式稿、核查、批准反馈及交付路径。交出 `production.json`、`by-page.md` 和 `assets/` 的绝对路径；按[内容交接](references/content-handoff.md)保留上游路径、页面身份和审计 provenance，由 PPT `scripts/import_bypage.py --production` 程序导入。已有工作结构与材料包用 `--architecture`、`--materials` 一并绑定。
 
-由 PPT Hell 调用时交回原制作流程；用户直接使用或来自 Proposal 时提示使用 `$planners-ppt-hell`。下游使用制作快照，并回查对应正式稿及其核查，不把正式稿的 Hash 冒充制作快照的 Hash。沿用来源、读取层和仍有效的核查；仅改版式无需重复内容核查，改变文字事实、图片证据或核心判断时回写同一正式稿、续检并重出批准快照。
+由 PPT Hell 调用时交回原制作流程；用户直接使用或来自 Proposal 时提示使用 `$planners-ppt-hell`。上游核查只覆盖制作基线；编辑后的 SVG 按明确版本记录内容差异及核查范围。需要更新上游正式稿时明确回到 Bypage，不自动反向同步；详见内容交接。
 
 本 Skill 完成于：完整页面已被审阅，事实疑点有有效处理，交付路径真实可用，PPT 制作者可以继续工作。项目偏好与决定保留在项目记忆；维护接口时参考 `references/architecture.md`。
