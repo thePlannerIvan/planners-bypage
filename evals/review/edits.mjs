@@ -19,7 +19,7 @@ for (const opaque of [false,true]) {
   writeFileSync(sourceIndex,JSON.stringify({contract_version:'source-index/2.0.0',source_root:'.',sources:[]}));
   const writeAudit = () => writeFileSync(audit,JSON.stringify({contract_version:'fact-audit/1.0.0',artifact:{path:copy,sha256:sha256(readFileSync(copy))},source_index:{path:sourceIndex,index_sha256:null,read_at:null},checker:'known-fixture',blind_spots:[],suspects:[]}));
   writeAudit();
-  const build = () => run('start-bypage-review.mjs',['--copy',copy,'--audit',audit,'--assets',manifest,'--review-dir',reviewDir,'--kind','final','--surface-only']);
+  const build = () => run('start-bypage-review.mjs',['--copy',copy,'--audit',audit,'--assets',manifest,'--review-dir',reviewDir,'--kind','final','--surface-only','--legacy-review','true']);
   const surface = build().surface;
   const browser = spawnSync(process.env.PLAYWRIGHT_PYTHON || 'python3',[moduleScript('planners-review-core','evals/exercise-content-review.py'),'--surface',surface,...(opaque ? ['--opaque'] : [])],{encoding:'utf8'});
   assert(browser.status === 0,'browser behavior: '+browser.stdout+browser.stderr);

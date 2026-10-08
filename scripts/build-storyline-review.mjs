@@ -14,6 +14,7 @@ for (const key of ['--architecture', '--assets', '--output']) if (!args[key]) th
 const architecturePath = resolve(args['--architecture']);
 const manifestPath = resolve(args['--assets']);
 const outputPath = resolve(args['--output']);
+const workbench = args['--legacy-review'] !== 'true';
 // 上一轮**人**做过的决定（页面决定 + 逐张图片状态）。读不到＝第一轮，行为与原来完全一致。
 const priorRound = readPriorRound(args['--previous'] ? resolve(args['--previous']) : null, 'storyline');
 const validation = spawnSync(process.execPath, [
@@ -74,13 +75,13 @@ const pages = architecture.pages.map(page => {
 const recheckPages = pages.filter(page => page.requires_recheck);
 const sections = architecture.sections.map(s => ({section_id:s.section_id,title:s.title,lead:s.audience_shift,transition:s.transition}));
 const sourceSha256 = sha256(architectureRaw+'\n---ASSET-MANIFEST---\n'+manifestRaw);
-const context = writeReviewContext(dirname(outputPath),{type:'architecture',reviewKind:'storyline',sourceSha256,pages,sections,
+const context = writeReviewContext(dirname(outputPath),{type:'architecture',reviewKind:'storyline',workbench,allowStructureChanges:true,sourceSha256,pages,sections,
   files:[{path:architecturePath,sha256:sha256(architectureRaw)},{path:manifestPath,sha256:sha256(manifestRaw)}]});
 const html = renderPageReviewHtml({
   reviewKind: 'storyline',
   title: 'Storyline 与页面架构审阅',
   subtitle: architecture.storyline_thesis + ' · 共 ' + pages.length + ' 页。请一起判断章节推进、页面任务和图片候选。',
-  sourceSha256, sections, thesis:architecture.storyline_thesis, draftPath:context.draftPath,
+  sourceSha256, workbench, allowStructureChanges: true, sections, thesis:architecture.storyline_thesis, draftPath:context.draftPath,
   pages,
   notice: recheckPages.length
     ? '所有页面默认通过；上一轮你标了「需要修改」的 ' + recheckPages.length + ' 页必须复核后明确选择（点一下通过即可）。每页先展示推荐的 1–3 张图片，其他候选折叠；改变图片状态或输入反馈后，本页自动切换为需要修改。'

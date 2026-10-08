@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { moduleScript } from './planners-modules.mjs';
 import {reviewSourceHash} from './review-source-hash.mjs';
-const {sha256, contentHash, validateChanges, writeReviewContext} = await import(pathToFileURL(moduleScript('planners-review-core','scripts/content-review-contract.mjs')));
-export {sha256, contentHash, writeReviewContext};
+const {sha256, contentHash, contentProjection, validateChanges, writeReviewContext} = await import(pathToFileURL(moduleScript('planners-review-core','scripts/content-review-contract.mjs')));
+export {sha256, contentHash, contentProjection, writeReviewContext};
 
 export function splitCopy(raw) {
   return [...raw.replace(/\r\n/g,'\n').matchAll(/(?:^|\n)(---\n[\s\S]*?\n---\n[\s\S]*?)(?=\n---\ncontract_version:|$)/g)].map(m => m[1].trimEnd());
@@ -12,6 +12,12 @@ export function splitCopy(raw) {
 function applyStructure(raw, changes) {
   const doc = JSON.parse(raw), byPage = new Map(doc.pages.map(p => [String(p.page_number),p]));
   const bySection = new Map(doc.sections.map(s => [s.section_id,s]));
+  for (const [id, item] of Object.entries(changes.added_pages ?? {})) byPage.set(id, {
+    page_number: Number(id), section_id: item.section_id, title_intent: item.title, main_message: item.title,
+    page_type: 'explanation', page_job: item.title,
+    content_blocks: [{block_title: item.title, role: item.title, content_requirement: item.title, suggested_form: 'paragraph'}],
+    source_needs: [], recommended_assets: [], other_candidate_assets: [], transition: '',
+  });
   if ('thesis' in changes.edits) doc.storyline_thesis = changes.edits.thesis;
   for (const [id, patch] of Object.entries(changes.edits.sections ?? {})) {
     const s = bySection.get(id);
@@ -49,6 +55,9 @@ function applyCopy(raw, changes, context) {
   const prefix = raw.slice(0,raw.indexOf('---\n'));
   return prefix+changes.page_order.map((id,i) => pages.get(String(id)).replace(/^page_number:.*$/m,'page_number: '+(i+1)).trimEnd()).join('\n\n')+'\n';
 }
+
+export const applyContentChanges = (raw, changes, context) => context.type === 'architecture'
+  ? applyStructure(raw, changes) : applyCopy(raw, changes, context);
 
 /** Source ownership stays here. The host only writes submitted bytes. */
 export function prepareEdits(submission, reviewDir) {

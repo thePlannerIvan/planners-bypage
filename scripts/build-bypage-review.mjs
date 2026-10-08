@@ -115,14 +115,15 @@ const pages = splitPages(copyRaw).map(({ frontmatter, body }) => {
   };
 });
 const recheckPages = pages.filter(page => page.requires_recheck);
-const context = writeReviewContext(dirname(outputPath),{type:'copy',reviewKind,sourceSha256,pages,sections:[],imageMap,assetManifestPath,
+const workbench = args['--legacy-review'] !== 'true';
+const context = writeReviewContext(dirname(outputPath),{type:'copy',workbench,reviewKind,sourceSha256,pages,sections:[],imageMap,assetManifestPath,
   files:[{path:copyPath,sha256:sha256(copyRaw)},...(args['--audit'] ? [{path:resolve(args['--audit']),sha256:sha256(auditRaw)}] : []),
     ...(args['--assets'] ? [{path:resolve(args['--assets']),sha256:sha256(readFileSync(resolve(args['--assets'])))}] : [])]});
 const html = renderPageReviewHtml({
   reviewKind,
   title: kind === 'sample' ? '代表性样页校准' : '完整 By-page 图文审阅',
   subtitle: '请逐页检查 ' + pages.length + ' 页的标题、主要信息、完整主体、表格、图表说明和图片。',
-  sourceSha256,
+  sourceSha256, workbench, allowStructureChanges: false,
   draftPath:context.draftPath,
   pages,
   notice: reviewNotice(pages, factExceptions.length > 0, recheckPages.length),

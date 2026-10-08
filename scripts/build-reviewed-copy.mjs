@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url';
 import {pageNumber, scalar, section, splitPages} from './lib/bypage-copy.mjs';
 import {writeProductionExport} from './lib/production-export.mjs';
 import { createHash } from 'node:crypto';
+import {moduleScript} from './lib/planners-modules.mjs';
+import {pathToFileURL} from 'node:url';
 
 function argsOf(argv) {
   const out = {};
@@ -65,9 +67,11 @@ function rewriteRegisteredAssetPaths(markdown, pathMap) {
 }
 
 const args = argsOf(process.argv.slice(2));
-for (const key of ['--copy', '--audit', '--feedback', '--manifest', '--output', '--assets-dir']) {
+for (const key of ['--copy', '--audit', '--manifest', '--output', '--assets-dir']) {
   if (!args[key]) throw new Error(`缺少 ${key}`);
 }
+if (!args['--feedback'] && !args['--workbench']) throw Error('需要 --workbench <审阅目录> 或旧版 --feedback');
+if (args['--feedback'] && args['--workbench']) throw Error('选择一种内容版本绑定方式');
 for (const path of Object.values(args)) {
   const canonical = existsSync(path) ? realpathSync(path) : String(path);
   if (canonical.split(/[\\/]/).some(part => part.startsWith('.env'))) {
@@ -76,14 +80,14 @@ for (const path of Object.values(args)) {
 }
 const copyPath = resolve(args['--copy']);
 const auditPath = resolve(args['--audit']);
-const feedbackPath = resolve(args['--feedback']);
+const feedbackPath = args['--feedback'] ? resolve(args['--feedback']) : null;
 const manifestPath = resolve(args['--manifest']);
 const outputPath = resolve(args['--output']);
 const assetsDir = resolve(args['--assets-dir']);
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const audit = JSON.parse(readFileSync(auditPath, 'utf8'));
-const contextPath = resolve(dirname(feedbackPath), 'review-context.json');
-if (existsSync(contextPath)) {
+const contextPath = resolve(args['--workbench'] || dirname(feedbackPath), 'review-context.json');
+if (!args['--workbench'] && existsSync(contextPath)) {
   const context = JSON.parse(readFileSync(contextPath, 'utf8'));
   const reviewedManifest = (context.files || []).find(file => resolve(file.path) === manifestPath);
   if (!reviewedManifest || reviewedManifest.sha256 !== createHash('sha256').update(readFileSync(manifestPath)).digest('hex')) {
@@ -92,7 +96,7 @@ if (existsSync(contextPath)) {
 }
 const identity = path => existsSync(path) ? realpathSync(path) : path;
 const protectedPaths = [copyPath, auditPath, feedbackPath, manifestPath,
-  resolve(dirname(auditPath), audit.source_index?.path || '.')].map(identity);
+  resolve(dirname(auditPath), audit.source_index?.path || '.')].filter(Boolean).map(identity);
 if (protectedPaths.includes(identity(outputPath))
   || protectedPaths.includes(identity(resolve(assetsDir, 'asset-manifest.json')))) {
   throw new Error('交付输出不能覆盖活动稿、核查、反馈、资产清单或来源索引');
@@ -109,6 +113,13 @@ const auditValidation = spawnSync(process.execPath, [
 if (auditValidation.status !== 0) {
   throw new Error(`事实语义核验无效，不能生成交付物：${auditValidation.stdout || auditValidation.stderr}`);
 }
+let workbenchPath;
+if (args['--workbench']) {
+  const report = JSON.parse(auditValidation.stdout);
+  if (report.human_review_required?.length) throw Error('事实例外仍需逐项裁定，保存内容不能代替事实决定');
+  const {writeContentSnapshot} = await import(pathToFileURL(moduleScript('planners-review-core','scripts/content-snapshot.mjs')));
+  workbenchPath = writeContentSnapshot(args['--workbench'],copyPath,{audit:auditPath,asset_manifest:manifestPath});
+} else {
 const feedbackValidation = spawnSync(process.execPath, [
   resolve(scriptDir, 'validate-review-feedback.mjs'),
   '--feedback', feedbackPath, '--copy', copyPath, '--audit', auditPath, '--kind', 'final',
@@ -117,9 +128,10 @@ const feedbackValidation = spawnSync(process.execPath, [
 if (feedbackValidation.status !== 0) {
   throw new Error(`终稿反馈无效，不能生成交付物：${feedbackValidation.stdout || feedbackValidation.stderr}`);
 }
+}
 const pages = splitPages(readFileSync(copyPath, 'utf8'));
-const feedback = JSON.parse(readFileSync(feedbackPath, 'utf8'));
-if (feedback.overall_decision !== 'approve') throw new Error('终稿仍有修改项，不能生成交付物');
+const feedback = feedbackPath ? JSON.parse(readFileSync(feedbackPath, 'utf8')) : {decisions:[]};
+if (feedbackPath && feedback.overall_decision !== 'approve') throw new Error('终稿仍有修改项，不能生成交付物');
 const manifestValidation = spawnSync(process.execPath, [
   resolve(scriptDir, 'validate-asset-manifest.mjs'), manifestPath, '--final',
 ], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
@@ -218,7 +230,7 @@ if (args['--production-json']) {
   writeProductionExport({
     output: args['--production-json'], memory: args['--memory'],
     architecture: args['--architecture'], materials: args['--materials'],
-    copyPath, auditPath, feedbackPath, manifestPath, outputPath,
+    copyPath, auditPath, feedbackPath, workbenchPath, manifestPath, outputPath,
     deliveredManifestPath, pages, outputPages,
   });
 }

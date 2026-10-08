@@ -17,7 +17,7 @@ assert(skill.includes('调用与续检') && !skill.includes('子代理复用（�
 const handoff = readFileSync(join(root, 'references/content-handoff.md'), 'utf8');
 assert(handoff.includes('不要求 Proposal') && handoff.includes('恢复原目录'), 'PPT Hell 资料入口无需 Proposal 且须恢复原项目');
 assert(handoff.includes('同一核查员续检') && handoff.includes('同一 Bypage 正式稿'), '返修必须使用同一活动稿件与核查上下文');
-assert(skill.includes('直接审阅完整 By-page'), '默认完整稿审阅');
+assert(skill.includes('直接打开完整 By-page Workbench'), '默认完整稿 Workbench');
 assert(jsonOutput(runNode(join(root, 'scripts/validate-page-architecture.mjs'), [join(root, 'templates/page-architecture.json')])).valid, '页面架构模板必须通过');
 assert(jsonOutput(runNode(join(root, 'scripts/validate-bypage.mjs'), [join(root, 'templates/by-page.md')])).valid, 'By-page 模板必须通过');
 

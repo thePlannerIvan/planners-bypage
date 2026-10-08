@@ -29,7 +29,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { FEEDBACK_REL, HISTORY_DIR, resolveSurfacePaths, surfacePath } from './review-surface.mjs';
-import {contentHash,prepareEdits,commitEdits} from './lib/review-edits.mjs';
+import {contentHash,contentProjection,prepareEdits,commitEdits} from './lib/review-edits.mjs';
 
 const CURSOR_NAME = '.inbox-cursor.json';
 const ALLOWED_CONTRACT = '1.1.0';
@@ -161,7 +161,7 @@ export function importSubmissions(surfaceFile, { dryRun = false } = {}) {
     native.source_sha256 = prepared.sourceHash;
     native.decisions = native.decisions.map(d => ({...d,page_number:prepared.mapping.get(d.page_number)})).sort((a,b) => a.page_number-b.page_number);
     commitEdits(prepared,reviewDir);
-    cursor.applied_draft = contentHash({edits:prepared.changes.edits,page_order:prepared.changes.page_order,section_order:prepared.changes.section_order});
+    cursor.applied_draft = contentHash(contentProjection({edits:prepared.changes.edits,page_order:prepared.changes.page_order,section_order:prepared.changes.section_order}));
     receipt.content_changed = prepared.changed;
     receipt.page_mapping = Object.fromEntries(prepared.mapping);
     receipt.requires_fact_recheck = prepared.changed && prepared.context.type === 'copy';

@@ -12,7 +12,7 @@ fixture.sections.push({...fixture.sections[0],section_id:'sec-two',title:'Second
 fixture.pages.push({...structuredClone(fixture.pages[0]),page_number:2,section_id:'sec-two',title_intent:'Second page'});
 writeFileSync(architecture,JSON.stringify(fixture,null,2));
 writeFileSync(manifest,JSON.stringify({contract_version:'asset-manifest/1.1.0',asset_root:'.',assets:[]}));
-const surface = run('start-storyline-review.mjs',['--architecture',architecture,'--assets',manifest,'--review-dir',reviewDir,'--surface-only']).surface;
+const surface = run('start-storyline-review.mjs',['--architecture',architecture,'--assets',manifest,'--review-dir',reviewDir,'--surface-only','--legacy-review','true']).surface;
 const browser = spawnSync(process.env.PLAYWRIGHT_PYTHON || 'python3',[moduleScript('planners-review-core','evals/exercise-content-review.py'),'--surface',surface,'--opaque'],{encoding:'utf8'});
 assert(browser.status === 0,'browser behavior: '+browser.stdout+browser.stderr);
 assert(run('review-inbox.mjs',['--surface',surface]).content_changed,'Structure edits must apply');

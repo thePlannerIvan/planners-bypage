@@ -42,7 +42,7 @@ const stopAll = async (surfaces) => {
 };
 
 const output = join(temp, 'storyline/index.html');
-runNode(join(root, 'scripts/build-storyline-review.mjs'), ['--architecture', architecturePath, '--assets', manifestPath, '--output', output]);
+runNode(join(root, 'scripts/build-storyline-review.mjs'), ['--architecture', architecturePath, '--assets', manifestPath, '--output', output, '--legacy-review', 'true']);
 const html = readFileSync(output, 'utf8');
 assert(html.includes('更多图片') && html.includes("a.group !== 'other'") && html.includes('group":"other"'), 'Storyline Review 必须先显示推荐图片并折叠其他候选');
 assert(html.includes('data-asset-choice') && html.includes('asset-one'), '图片必须可以逐张决定');
@@ -55,7 +55,7 @@ assert(markerLines === 1 && !html.includes('src="{{REVIEW_BRIDGE}}"') && !html.i
 
 const live = jsonOutput(runNode(join(root, 'scripts/start-storyline-review.mjs'), [
   '--architecture', architecturePath, '--assets', manifestPath,
-  '--review-dir', join(temp, 'live'), '--port', '0', '--no-open',
+  '--review-dir', join(temp, 'live'), '--port', '0', '--no-open', '--legacy-review', 'true',
 ]));
 const liveHtml = await (await fetch(live.url)).text();
 const reviewData = JSON.parse(liveHtml.match(/<script id="reviewData" type="application\/json">([\s\S]*?)<\/script>/)?.[1] || '{}');
@@ -87,7 +87,7 @@ assert(rendered.status === 0,'真实浏览器必须在离线及握手超时时�
 assert(/id="reload"/.test(liveHtml),'刷新出口必须常驻');
 const secondLive = jsonOutput(runNode(join(root, 'scripts/start-storyline-review.mjs'), [
   '--architecture', architecturePath, '--assets', manifestPath,
-  '--review-dir', join(temp, 'live'), '--port', '0', '--no-open',
+  '--review-dir', join(temp, 'live'), '--port', '0', '--no-open', '--legacy-review', 'true',
 ]));
 assert(secondLive.url === live.url && secondLive.reused === true,
   '还活着的宿主必须被复用（判死活归模组：pid + 页面回 200 + 注入点以外逐字节相同 + watch 文件对得上）');
@@ -133,11 +133,11 @@ main_message: "图片必须在审阅页面出现"
 - src-doc
 `);
 const bypageAudit = writeAuditFixture(temp, bypage);
-runNode(join(root, 'scripts/build-bypage-review.mjs'), ['--copy', bypage, '--audit', bypageAudit, '--output', join(bypageDir, 'index.html'), '--assets', manifestPath, '--kind', 'final']);
+runNode(join(root, 'scripts/build-bypage-review.mjs'), ['--copy', bypage, '--audit', bypageAudit, '--output', join(bypageDir, 'index.html'), '--assets', manifestPath, '--kind', 'final', '--legacy-review', 'true']);
 const bypageHtml = readFileSync(join(bypageDir, 'index.html'), 'utf8');
 assert(bypageHtml.includes('完整 By-page 图文审阅') && bypageHtml.includes('assets/page.png') && existsSync(join(bypageDir, 'assets/page.png')), 'By-page Review 必须渲染并本地化图片');
 const bypageLive = jsonOutput(runNode(join(root, 'scripts/start-bypage-review.mjs'), [
-  '--copy', bypage, '--audit', bypageAudit, '--assets', manifestPath, '--review-dir', join(temp, 'bypage-live'), '--kind', 'final', '--port', '0', '--no-open',
+  '--copy', bypage, '--audit', bypageAudit, '--assets', manifestPath, '--review-dir', join(temp, 'bypage-live'), '--kind', 'final', '--port', '0', '--no-open', '--legacy-review', 'true',
 ]));
 const bypageLiveHtml = await (await fetch(bypageLive.url)).text();
 assert(/id="reload"/.test(bypageLiveHtml), 'R11：逐页面 serve 出去的页面上也有永久刷新出口');
@@ -201,7 +201,7 @@ const readServed = async (live) => {
   return { html: served, data: JSON.parse(served.match(/<script id="reviewData" type="application\/json">([\s\S]*?)<\/script>/)?.[1] || '{}') };
 };
 const startRecheck = () => jsonOutput(runNode(join(root, 'scripts/start-bypage-review.mjs'), [
-  '--copy', recheckDraft, '--audit', writeAuditFixture(temp, recheckDraft), '--assets', manifestPath, '--review-dir', recheckDir, '--kind', 'final', '--port', '0', '--no-open',
+  '--copy', recheckDraft, '--audit', writeAuditFixture(temp, recheckDraft), '--assets', manifestPath, '--review-dir', recheckDir, '--kind', 'final', '--port', '0', '--no-open', '--legacy-review', 'true',
 ]));
 
 const liveRound1 = await startRecheck();
@@ -248,7 +248,7 @@ assert(jsonOutput(runNode(join(root, 'scripts/validate-review-feedback.mjs'), [
 // 第二处同类坑：逐张图片的决定不许被生成器的候选分组覆盖（storyline 面）
 const storyDir = join(temp, 'story-recheck');
 const liveStory1 = jsonOutput(runNode(join(root, 'scripts/start-storyline-review.mjs'), [
-  '--architecture', architecturePath, '--assets', manifestPath, '--review-dir', storyDir, '--port', '0', '--no-open',
+  '--architecture', architecturePath, '--assets', manifestPath, '--review-dir', storyDir, '--port', '0', '--no-open', '--legacy-review', 'true',
 ]));
 const storyRound1 = await readServed(liveStory1);
 assert(await submitToHost(liveStory1, {
@@ -260,7 +260,7 @@ assert(await submitToHost(liveStory1, {
   }],
 }) && readInbox(liveStory1).ok, '第一轮必须能保存"第 1 页 + 逐张图片决定"');
 const storyRound2 = await readServed(jsonOutput(runNode(join(root, 'scripts/start-storyline-review.mjs'), [
-  '--architecture', architecturePath, '--assets', manifestPath, '--review-dir', storyDir, '--port', '0', '--no-open',
+  '--architecture', architecturePath, '--assets', manifestPath, '--review-dir', storyDir, '--port', '0', '--no-open', '--legacy-review', 'true',
 ])));
 const seeded = storyRound2.data.pages[0].seeded_asset_decisions || [];
 assert(seeded.some(entry => entry.asset_id === 'asset-two' && entry.status === 'excluded' && entry.from_prior_round === true),
@@ -279,7 +279,7 @@ pass('重出审阅页不许重置人的决定（逐页决定 + 逐张图片）')
 //    加上"输出里没有 url"，就是外面能观察到的最强形式。
 const quietDir = join(temp, 'quiet');
 const quiet = jsonOutput(runNode(join(root, 'scripts/start-bypage-review.mjs'), [
-  '--copy', bypage, '--audit', bypageAudit, '--assets', manifestPath, '--review-dir', quietDir, '--kind', 'final', '--surface-only',
+  '--copy', bypage, '--audit', bypageAudit, '--assets', manifestPath, '--review-dir', quietDir, '--kind', 'final', '--surface-only', '--legacy-review', 'true',
 ]));
 assert(quiet.status === 'surface_ready' && quiet.host_started === false && !quiet.url,
   '--surface-only 必须只报 surface 的绝对路径（不起宿主、不开浏览器）');

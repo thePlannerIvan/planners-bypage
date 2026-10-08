@@ -15,7 +15,7 @@
  *
  * 两条路页面一个字都不用改（同一份页面、同一份桥）。
  */
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -24,9 +24,23 @@ import { feedbackPath, submissionsPath, surfaceOnly, surfacePath, writeSurface  
 
 // 公共模组的生命周期：**import 它，不重写任何判据**。
 const { openReview } = await import(moduleScript('planners-review-core', 'scripts/review-host.mjs'));
+function workbenchReport(reviewDir, sourceHash) {
+  const context = JSON.parse(readFileSync(join(reviewDir, 'review-context.json'), 'utf8'));
+  return { workbench: true, review_context: resolve(reviewDir, 'review-context.json'),
+    workbench_dir: resolve(reviewDir, 'workbench'), workbench_head: resolve(reviewDir, 'workbench/head.json'),
+    canonical_path: context.files?.[0]?.path || null,
+    source_hash: sourceHash, pending_tasks: resolve(reviewDir, 'workbench/head.json') };
+}
 
 const args = {};
-for (let i = 0; i < process.argv.slice(2).length; i += 2) args[process.argv.slice(2)[i]] = process.argv.slice(2)[i + 1];
+const argv = process.argv.slice(2);
+for (let i = 0; i < argv.length; i += 1) {
+  const key = argv[i];
+  if (!key?.startsWith('--')) continue;
+  const next = argv[i + 1];
+  if (next === undefined || next.startsWith('--')) args[key] = true;
+  else { args[key] = next; i += 1; }
+}
 for (const key of ['--copy', '--review-dir']) if (!args[key]) throw new Error('缺少 ' + key);
 const kind = args['--kind'] || 'final';
 if (kind === 'final' && !args['--assets']) throw new Error('完整 By-page 终审缺少 --assets');
@@ -43,6 +57,7 @@ const command = [
 ];
 if (args['--audit']) command.push('--audit', resolve(args['--audit']));
 if (args['--assets']) command.push('--assets', resolve(args['--assets']));
+if (args['--legacy-review'] === 'true') command.push('--legacy-review', 'true');
 if (existsSync(previousRound)) command.push('--previous', previousRound);
 const built = spawnSync(process.execPath, command, { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
 if (built.status !== 0) throw new Error(built.stdout || built.stderr);
@@ -52,17 +67,18 @@ writeSurface(reviewDir, { title });
 
 if (process.argv.includes('--surface-only') || process.argv.includes('--no-host')) {
   const surface = surfaceOnly(reviewDir, { title });
-  process.stdout.write(JSON.stringify({
-    valid: true, kind, prior_round_reused: priorRoundReused, ...surface,
-  }) + '\n');
+  const payload = { valid: true, kind, prior_round_reused: priorRoundReused, ...surface };
+  if (args['--legacy-review'] === 'true') Object.assign(payload, { submissions_path: submissionsPath(reviewDir), feedback_path: feedbackPath(reviewDir) });
+  else Object.assign(payload, workbenchReport(reviewDir, JSON.parse(readFileSync(join(reviewDir, 'review-context.json'), 'utf8')).sourceSha256));
+  process.stdout.write(JSON.stringify(payload) + '\n');
 } else {
   // 开浏览器归模组（openReview 的第三个参数，已统一进 Node CLI）；
   // 本 Skill 只决定这一次要不要开：--no-open 与无头环境都不开。
   const shouldOpen = !process.argv.includes('--no-open') && process.env.REVIEW_TEST_NO_OPEN !== '1';
   const state = await openReview(surfacePath(reviewDir), args['--port'] === undefined ? 0 : Number(args['--port']), shouldOpen);
-  process.stdout.write(JSON.stringify({
+  const payload = {
     valid: true,
-    status: 'waiting_for_human',
+    status: args['--legacy-review'] === 'true' ? 'waiting_for_human' : 'workbench_ready',
     url: state.url,
     port: state.port,
     pid: state.pid,
@@ -71,9 +87,12 @@ if (process.argv.includes('--surface-only') || process.argv.includes('--no-host'
     // 如实报"这次开没开浏览器"（模组语义：open 默认开，--no-open / 无头环境关）
     opened: state.opened,
     surface: state.surface,
-    submissions_path: submissionsPath(reviewDir),
-    feedback_path: feedbackPath(reviewDir),
     prior_round_reused: priorRoundReused,
-    next_action_zh: '请在网页保存审阅；然后跑 scripts/review-inbox.mjs 收件（它把提交翻译成 review-feedback.json 并追加 history/），再跑 validate-review-feedback.mjs。',
-  }) + '\n');
+  };
+  if (args['--legacy-review'] === 'true') Object.assign(payload, { submissions_path: submissionsPath(reviewDir), feedback_path: feedbackPath(reviewDir),
+    next_action_zh: '请在网页提交；然后跑 scripts/review-inbox.mjs 收件，再跑 validate-review-feedback.mjs。' });
+  else Object.assign(payload, workbenchReport(reviewDir, JSON.parse(readFileSync(join(reviewDir, 'review-context.json'), 'utf8')).sourceSha256), {
+    next_action_zh: '打开工作台后，先读取 review-context.json 与 canonical_path；文字、页序和图片保存会回写同一份逐页主稿。需要处理反馈时读取 workbench/head.json 的 pending tasks，并按 task 的 revision/source_hash 修改；保存不是批准。'
+  });
+  process.stdout.write(JSON.stringify(payload) + '\n');
 }

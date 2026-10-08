@@ -15,7 +15,7 @@ description: 将已确认的 Storyline 展开为完整逐页内容，或将多�
 接手与理解 → 页面展开与取材 → 完整逐页稿 → 核查与图文审阅 ↔ 修改 → PPT 交接
 ```
 
-阅读、取材和写作可以往返，沿用已有成果与用户决定。直接审阅完整 By-page，不设置常规的 Storyline Review 或样页审批。
+阅读、取材和写作可以往返，沿用已有成果与用户决定。直接打开完整 By-page Workbench，不设置常规的 Storyline Review 或样页批准门。
 
 下文 `<Skill>` 是当前 Bypage 目录，`<Project>` 是项目目录，`<W>` 是 `<Project>/.bypage-work`，`<I>` 是本项目权威来源索引的绝对路径。按名称找到当前环境里的依赖；公共模组由 `scripts/lib/planners-modules.mjs` 解析，缺失时遵循回执与环境权限处理。
 
@@ -23,9 +23,9 @@ description: 将已确认的 Storyline 展开为完整逐页内容，或将多�
 
 接收 Proposal、PPT Hell 或恢复既有项目时，读取 `references/content-handoff.md`，按其中的文件归属和调用时机续接。
 
-**Proposal 交接：**读取上游项目记忆、来源索引、`page-architecture.json` 和结构审阅反馈。确认反馈批准且绑定当前上游结构，提取核心判断、必要内容、证据边界与可展开空间。已有 Storyline 直接展开；会改变已确认判断或承诺的问题，带着证据交给用户决定。
+**Proposal 交接：**读取上游项目记忆、来源索引、canonical `page-architecture.json` 和当前 Workbench head。确认上游结构主稿已保存、没有 revision/source hash 冲突，提取核心判断、必要内容、证据边界与可展开空间。已有 Storyline 直接展开；会改变核心判断或承诺的问题，带着证据交给用户决定。
 
-**PPT Hell 调用或用户直接提供资料：**接收原始资料、已有目标与用户确认、可用素材和工作目录。使用对应文件能力读取正文、数据与视觉内容，组织适合受众的工作主线。PPT Hell 已有制作项目时保留其目录和续接位置；已有批准的完整 By-page 时直接交回制作，无需重走内容流程。
+**PPT Hell 调用或用户直接提供资料：**接收原始资料、已有目标与用户确认、可用素材和工作目录。使用对应文件能力读取正文、数据与视觉内容，组织适合受众的工作主线。PPT Hell 已有制作项目时保留其目录和续接位置；已有 canonical 完整 By-page、有效事实核查和制作快照时直接交回制作，无需重走内容展开。
 
 两条入口共用后续步骤。材料已经回答的问题继续沿用，只询问会实质改变方案而尚未决定的事项。
 
@@ -37,11 +37,11 @@ description: 将已确认的 Storyline 展开为完整逐页内容，或将多�
 |---|---|---|
 | 项目记忆 `<M>` | 沿用上游 `project-memory.md`，追加页面决定 | 沿用同项目记忆；没有才新建 `<W>/project-memory.md` |
 | 来源索引 `<I>` | 沿用上游索引原路径和来源 ID | 沿用同项目索引；没有才新建 `<W>/source-index.json` |
-| 上游结构与批准反馈 | 保留原件及路径，作为已批准判断的依据 | 沿用已有决定；不存在时直接组织工作结构 |
+| 上游结构与 Workbench head | 保留原件及路径，作为当前判断与结构的依据 | 沿用已有决定；不存在时直接组织工作结构 |
 | 页面工作结构 `<A>` | 首次将上游结构转换为 `<W>/page-architecture.json`；已有则继续维护 | 沿用已有工作结构；没有按模板新建 |
 | `<K>`、`<V>`、`<D>`、`<F>`、`<R>` | 沿用同项目的活动文件；缺失项依次在 `<W>` 新建 `page-material-packs.json`、`asset-manifest.json`、`bypage-draft.md`、`fact-audit.json`、`reviews/bypage/` | 同左 |
 
-页面工作结构可拆合页，上游批准结构保持原样。索引和记忆不在 `.bypage-work` 再建副本；来源补读、图片登记、核查、反馈收件和下游回查都指向同一活动文件。正式稿始终为 `<D>`，收件修改原地回写；交付版是由它生成的制作快照，不是第二份可独立返修的稿。
+页面工作结构可拆合页，上游 canonical 结构保持原样。索引和记忆不在 `.bypage-work` 再建副本；来源补读、图片登记、核查、Workbench 保存、任务处理和下游回查都指向同一活动文件。正式稿始终为 `<D>`，Workbench 保存原地回写；交付版是由它生成的制作快照，不是第二份可独立返修的稿。
 
 ### 来源索引
 
@@ -66,15 +66,14 @@ node "<Skill>/scripts/validate-source-index.mjs" "<I>" --stamp
 
 需要组织叙事推进时读取 `storytelling`；页面角色、标题链与内容组织读取 `slide-copy`。先承接项目记忆中的已采用方法；出现新的论证或页面组织问题时读取并调用 `planners-method-wiki`，传入当前问题、可用材料和同一份项目记忆。没有 Proposal 时也直接调用该独立 Skill；方法库选择、Lens / Recipe 检索及采用记录遵循其入口，查询不重建项目来源索引。
 
-按 `templates/page-architecture.json` 和 `contracts/page-architecture.schema.json` 维护活动页面工作结构 `<A>`。Proposal 首次交接先用上游校验器验证结构和批准反馈，然后转换字段：
+按 `templates/page-architecture.json` 和 `contracts/page-architecture.schema.json` 维护活动页面工作结构 `<A>`。Proposal 首次交接先验证上游结构和当前 Workbench head，然后转换字段：
 
 ```bash
 node "<Proposal>/proposal-co-creation/scripts/validate-page-architectures.mjs" "<上游结构>"
-node "<Proposal>/proposal-co-creation/scripts/validate-page-review-feedback.mjs" --feedback "<上游批准反馈>" --architecture "<上游结构>"
 node "<Skill>/scripts/adapt-proposal-architecture.mjs" --input "<上游结构>" --output "<A>"
 ```
 
-两个校验回执均需有效，且反馈 `overall_decision=approve`。转换器保留认知任务、判断、证据需求，将非空边界、图表和布局要求写入内容块，并将附录展开为页面；输出仍需按页面任务选择 `page_type` 和素材。恢复已有工作结构时继续编辑它，不重跑转换覆盖返修。拆合页时在 `<M>` 或材料包注明与上游判断的对应关系。
+确认上游结构已保存且 Workbench head 的 `revision`、`source_hash` 与结构主稿一致；不再等待 `overall_decision=approve`。转换器保留认知任务、判断、证据需求，将非空边界、图表和布局要求写入内容块，并将附录展开为页面；输出仍需按页面任务选择 `page_type` 和素材。恢复已有工作结构时继续编辑它，不重跑转换覆盖返修。拆合页时在 `<M>` 或材料包注明与上游判断的对应关系。
 
 边展开边按 `templates/page-material-packs.json` 准备 `<K>`：只收集页面实际需要的原文、数据、定位、限制、素材与缺口。材料包帮助写作，不再编译整库证据或等待另一次结构批准。
 
@@ -117,23 +116,25 @@ node "<Skill>/scripts/validate-fact-audit.mjs" --audit "<F>" --copy "<D>" --allo
 
 处理 `errors` 并检查来源仍覆盖当前依据；读取 `human_review_required`。`confirmed` 是待改事实，先修正再续检；需保留的边界由用户逐项明确裁定，核查员据实际决定记录 `accepted_with_caveat`，再绑定当前稿件生成审阅。校验有效不等于所有疑点已解决。
 
-### 审阅与反馈续接
+### 审阅工作台与任务续接
 
-读取 `planners-review-core`，通过本 Skill 的 adapter 展示完整正文、表格、图片、来源及事实例外。公共模组负责壳、传输与宿主；本 Skill 负责映射、收件回写和决定解释。
+读取 `planners-review-core`，通过本 Skill 的 adapter 展示完整正文、表格、图片、来源及事实例外。公共模组负责统一 UI、编辑器交互、Workbench 保存、DSH/本地宿主和任务传输；本 Skill 负责字段映射、事实核查续检和交接。逐页编辑器支持标题、主张、正文、图片上传/移除、拖动排序和上一页/下一页导航。
 
 ```bash
 node "<Skill>/scripts/start-bypage-review.mjs" --copy "<D>" --audit "<F>" --assets "<V>" --review-dir "<R>" --kind final
 ```
 
-有 `review_open` 工具时加 `--surface-only`，把返回的 `surface` 绝对路径交给它；`surface_ready` 仅表示生成完成。否则同一入口启动或复用本地宿主，读取 `opened`、`url` 和反馈路径，如实报告打开状态。等待用户提交时结束当前回合。
+如果当前运行在 DSH 且可用 `review_open`，加 `--surface-only`，把返回的 `surface` 绝对路径交给审阅插件；插件自动加载页面到侧栏，并提供“修改本页”式的局部反馈入口。`surface_ready` 仅表示生成完成，打开状态以插件回执为准。非 DSH，或 DSH 没有审阅插件时，同一入口自动启动或复用 `planners-review-core` 本地宿主。默认读取回执里的 `review_context`、`canonical_path`、`workbench_head`；Workbench surface 不声明 legacy 提交文件，不能寻找或创建 `review-feedback.json` / `review-submissions.json` 作为当前主稿。两路共用同一份页面、草稿和 `content-workbench/1`。
 
-用户提交后先收件，再读取回执、正式稿和反馈：
+用户保存或提交修改任务后：
 
 ```bash
-node "<Skill>/scripts/review-inbox.mjs" --surface "<R>/review-surface.json"
+读取 `<R>/workbench/head.json` 和 canonical `<D>`。`pending tasks` 只处理其声明的页面，并核对 task 的 `revision`、`source_hash`、`pages`；不要用旧 feedback 文件替代当前 head。
 ```
 
-检查 `ok`、`imported` 与 `skipped`，区分未提交和同一提交已收件。未提交时继续等待；已收件的同一提交使用现有收据与反馈，并核对当前版本。inbox 保留原稿、回写文字与排序、追加历史，用户修改后的正式稿成为后续输入。按 `page_mapping` 更新页面材料对应；原文冲突时保留提交与草稿，先解决冲突。
+保存回执成功后，canonical `<D>` 是后续唯一正文输入；`page_mapping` 是重排后的页码对应。模型处理任务后重新生成 Workbench。revision、来源、核查或资产发生冲突时保留用户草稿，不覆盖主稿，先重新读取 head 并解决冲突。
+
+只有恢复明确的旧项目时才加 `--legacy-review true`，然后才运行 `review-inbox.mjs`、旧版 feedback validator 和 legacy 资产导入；这条路径不与默认 Workbench 混用。
 
 有上传图片时，登记对应来源，并执行：
 
@@ -143,24 +144,24 @@ node "<Skill>/scripts/import-review-assets.mjs" --feedback "<R>/review-feedback.
 
 同批文件确属同一来源才共用 `--source-id`；不同来源分批导入。读取返回的 Asset ID，检查图片内容后记录真实 `visual_check`，回写材料包、正文引用和素材状态。上传行为本身不是视觉核查通过。
 
-`requires_fact_recheck` 为真，或文字、素材、依据已经变化时，先完成修改并更新受影响的核查，重新生成审阅面；旧反馈只作为返修意见保留，不能批准新版本。没有这些变化时校验本轮反馈：
+`requires_fact_recheck` 为真，或文字、素材、依据已经变化时，先完成修改并更新受影响的核查，重新生成 Workbench；旧反馈只作为历史返修意见保留，不能代表新版本。没有事实承载变化时继续当前核查和视觉检查。
 
 ```bash
-node "<Skill>/scripts/validate-review-feedback.mjs" --feedback "<R>/review-feedback.json" --copy "<D>" --audit "<F>" --kind final
+node "<Skill>/scripts/validate-fact-audit.mjs" --audit "<F>" --copy "<D>" --allow-human-review true
 ```
 
-反馈 `valid` 只表示有效，还需读取 `overall_decision`；`revise` 时按意见返修，上一轮要求修改的页面保持待复核，不由模型恢复成批准。审阅上下文记录本轮资产清单，资产变化或旧上下文未记录资产版本时重新检查并生成完整审阅。当前正式内容、核查和素材有效且用户真实提交 `approve` 后才交付。
+事实核查 `valid` 只表示绑定和格式有效，还要读取可疑项与 `human_review_required`。用户的文字、图片和排序保存已经进入 canonical 主稿，不需要额外“批准”才能继续；交付前只需确认当前稿、事实核查、资产清单和 Workbench snapshot 都绑定同一版本。
 
 ## 5. 交给 PPT Hell
 
-从当前批准版本生成交付，原有索引、材料包、核查与审阅记录保留在项目中：
+从当前 Workbench 保存版本生成交付，原有索引、材料包、核查与审阅记录保留在项目中：
 
 ```bash
-node "<Skill>/scripts/build-reviewed-copy.mjs" --copy "<D>" --audit "<F>" --feedback "<R>/review-feedback.json" --manifest "<V>" --output "<Project>/deliverable/by-page.md" --assets-dir "<Project>/deliverable/assets" --production-json "<Project>/deliverable/production.json" --memory "<M>"
+node "<Skill>/scripts/build-reviewed-copy.mjs" --copy "<D>" --audit "<F>" --workbench "<R>" --manifest "<V>" --output "<Project>/deliverable/by-page.md" --assets-dir "<Project>/deliverable/assets" --production-json "<Project>/deliverable/production.json" --memory "<M>"
 ```
 
-检查返回的 `valid`、正文/制作说明图片路径和交付资产清单；在 `<M>` 记录本次基线对应的正式稿、核查、批准反馈及交付路径。交出 `production.json`、`by-page.md` 和 `assets/` 的绝对路径；按[内容交接](references/content-handoff.md)保留上游路径、页面身份和审计 provenance，由 PPT `scripts/import_bypage.py --production` 程序导入。已有工作结构与材料包用 `--architecture`、`--materials` 一并绑定。
+检查返回的 `valid`、正文/制作说明图片路径和交付资产清单；在 `<M>` 记录本次 snapshot revision、正式稿、核查和交付路径。交出 `production.json`、`by-page.md` 和 `assets/` 的绝对路径；按[内容交接](references/content-handoff.md)保留上游路径、页面身份和审计 provenance，由 PPT `scripts/import_bypage.py --production` 程序导入。已有工作结构与材料包用 `--architecture`、`--materials` 一并绑定。
 
 由 PPT Hell 调用时交回原制作流程；用户直接使用或来自 Proposal 时提示使用 `$planners-ppt-hell`。上游核查只覆盖制作基线；编辑后的 SVG 按明确版本记录内容差异及核查范围。需要更新上游正式稿时明确回到 Bypage，不自动反向同步；详见内容交接。
 
-本 Skill 完成于：完整页面已被审阅，事实疑点有有效处理，交付路径真实可用，PPT 制作者可以继续工作。项目偏好与决定保留在项目记忆；维护接口时参考 `references/architecture.md`。
+本 Skill 完成于：canonical 完整页面已保存，事实疑点有有效处理，当前资产与 snapshot 绑定，交付路径真实可用，PPT 制作者可以继续工作。项目偏好与决定保留在项目记忆；维护接口时参考 `references/architecture.md`。

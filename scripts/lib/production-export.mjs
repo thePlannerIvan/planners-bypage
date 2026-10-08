@@ -35,7 +35,8 @@ export function writeProductionExport(options) {
   const upstream = {
     copy: binding(copyPath), memory: binding(options.memory),
     source_index: binding(resolve(dirname(auditBinding.path), audit.source_index.path)),
-    audit: auditBinding, feedback: binding(feedbackPath),
+    audit: auditBinding,
+    ...(options.workbenchPath ? {workbench:binding(options.workbenchPath)} : {feedback:binding(feedbackPath)}),
     asset_manifest: binding(manifestPath), deliverable: binding(outputPath),
     delivered_asset_manifest: binding(deliveredManifestPath),
   };

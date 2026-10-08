@@ -66,7 +66,7 @@ const liveManifest = join(temp, 'live-asset-manifest.json');
 writeFileSync(liveManifest, JSON.stringify({ contract_version: 'asset-manifest/1.1.0', asset_root: 'assets', assets: [] }, null, 2));
 const live = jsonOutput(runNode(join(root, 'scripts/start-bypage-review.mjs'), [
   '--copy', liveDraft, '--audit', writeAuditFixture(temp, liveDraft), '--assets', liveManifest, '--review-dir', liveDir,
-  '--final-md', join(temp, 'deliverable', 'by-page.md'), '--kind', 'final', '--port', '0', '--no-open',
+  '--final-md', join(temp, 'deliverable', 'by-page.md'), '--kind', 'final', '--port', '0', '--no-open', '--legacy-review', 'true',
 ]));
 // 上传走宿主声明的那条能力（surface 里的 capabilities: ['asset-upload']）：
 // 字节原样递进去，落盘位置相对 `dir`（＝审阅目录）。
