@@ -89,11 +89,15 @@ node "<Skill>/scripts/validate-asset-manifest.mjs" "<V>"
 
 ## 3. 写完整逐页稿
 
-使用 `slide-copy` 将页面任务与材料写成完整内容，遵循用户指定的语气、密度和讲述或独立阅读用途。风格来自项目参考与已有决定，记录在项目记忆；不设置固定样页数量或常规校准审批。
+页面文案与图文互证语言**全量遵循 `slide-copy` 规范**撰写；风格与用途来自项目参考与已有决定，记录在项目记忆。
 
-按 `templates/by-page.md` 写入 `<D>`：`Page Content` 是观众实际看到的内容，`Speaker Notes` 保留讲述解释与衔接，`Production Notes` 只写制作所需的关系、素材用途与限制，`Sources` 给出真实来源 ID 和定位。
+按 `templates/by-page.md` 写入 `<D>`：
+- `Page Content`：观众实际看到的完整可见内容，数据、表格与图表写清口径、单位与结论，图片使用真实资产路径；
+- `Speaker Notes`：视听解耦，保留讲述解释、承上启下台词与情感渲染；
+- `Production Notes`：向下游交付制作意图，标明向 `planners-ppt-hell` 推荐的版式原型代号（如模块几何、主视觉五段式、负空间留白、触点样机、张力对撞等）、物证形态（真实实拍或 3D 样机）与视线焦点；
+- `Sources`：给出真实来源 ID 和定位。
 
-数据、表格和图表写出实际内容、单位、时间、口径、比较关系与结论。图片使用真实资产路径，说明内容作用。根据页面任务安排信息层级、拆页或移入备注，保留必要事实与限定；完整稿应能直接用于制作，而不是主线摘要或待填关键词。
+写完全篇后，按 `slide-copy` 的影子甲板测试按序通读全篇页面标题，确认跨页因果链（Therefore / But）咬合自洽，再进入核查。
 
 ```bash
 node "<Skill>/scripts/validate-bypage.mjs" "<D>"
