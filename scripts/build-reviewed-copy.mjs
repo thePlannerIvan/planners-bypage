@@ -116,7 +116,7 @@ if (auditValidation.status !== 0) {
 let workbenchPath;
 if (args['--workbench']) {
   const report = JSON.parse(auditValidation.stdout);
-  if (report.human_review_required?.length) throw Error('事实例外仍需逐项裁定，保存内容不能代替事实决定');
+  if (report.human_review_required?.some(item => item.verdict !== 'accepted_with_caveat')) throw Error('事实例外仍需逐项裁定，保存内容不能代替事实决定');
   const {writeContentSnapshot} = await import(pathToFileURL(moduleScript('planners-review-core','scripts/content-snapshot.mjs')));
   workbenchPath = writeContentSnapshot(args['--workbench'],copyPath,{audit:auditPath,asset_manifest:manifestPath});
 } else {
@@ -188,7 +188,7 @@ const outputPages = pages.map(page => {
   return [
     `## P${String(number).padStart(2, '0')}｜${title}`,
     '',
-    claim ? `> ${claim}` : '',
+    claim && claim !== title ? `> ${claim}` : '',
     '',
     visibleCopy,
     assetMarkdown ? `\n${assetMarkdown}` : '',

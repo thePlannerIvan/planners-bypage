@@ -32,7 +32,7 @@ pages.forEach(({ frontmatter, body }, index) => {
   const number = Number(scalar(frontmatter, 'page_number'));
   if (scalar(frontmatter, 'contract_version') !== '1.0.0') errors.push({ page: number || null, code: 'contract_version', message: 'contract_version 必须为 1.0.0' });
   if (number !== expected) errors.push({ page: number || null, code: 'page_number_sequence', message: '页码必须从 1 连续递增' });
-  for (const field of ['section_id', 'page_type', 'page_title', 'main_message']) {
+  for (const field of ['section_id', 'page_type', 'page_title']) {
     if (!scalar(frontmatter, field)) errors.push({ page: number || null, code: 'missing_field', field, message: field + ' 不能为空' });
   }
   const content = section(body, 'Page Content', 'Speaker Notes');

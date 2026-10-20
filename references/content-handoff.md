@@ -11,8 +11,8 @@
 | 项目目标、用户决定、活动路径 | 各阶段追加到同一 `project-memory.md` | 读取并更新已有文件；默认在最早进入的阶段目录建立 |
 | 已采用方法与应用边界 | 同一 `project-memory.md` 中的方法采用记录，按 `planners-method-wiki` 定义 | 沿用库路径、采用时版本、方法 ID / 全文定位、用途与未满足条件；已有问题直接承接，新问题再检索 |
 | 来源 ID、原文件、读取层、覆盖、盲区 | 所有阶段维护同一 `source-index.json` | 保持位置和 ID，只增补实际新增或变化来源 |
-| 当前判断与证明需要 | Proposal canonical `page-architecture.json` + Workbench head/revision | Bypage 保留原件，转换为自己的工作结构；实质改判断先与用户讨论 |
-| 页面任务与取材 | Bypage 工作结构、材料包及资产清单 | 随页面展开与返修维护，不覆盖 Proposal 原件 |
+| 当前判断与证明需要 | Proposal canonical `page-architecture.json` + Workbench head/revision | Bypage 保留原件，直接展开为完整文案；实质改判断先与用户讨论 |
+| 页面任务与取材 | Bypage 正式稿与资产清单；工作结构和材料包按需 | 随页面展开与返修维护，不覆盖 Proposal 原件 |
 | 完整逐页内容 | Bypage `bypage-draft.md` | 核查、收件、返修都读写此稿；交付打包由它生成 |
 | 事实核查与当前稿状态 | 指向正式稿的 `fact-audit.json` + Workbench revision/snapshot | 检查绑定及裁定；上游结构状态不是完整稿事实核查 |
 | 制作基线 | `deliverable/by-page.md` + `production.json` + `assets/asset-manifest.json` | 程序导出正文、备注、来源、资产及上游真实路径/Hash；PPT Hell 程序导入 |
@@ -25,9 +25,9 @@
 
 ## 两次交接
 
-**Proposal → Bypage：**交项目目录、记忆、索引、canonical 结构、Workbench head/revision 的绝对路径。Bypage 校验结构和当前 head，首次转换工作结构；已有 Bypage 工作时继续当前文件。继承已读来源及有效读取层，补读页面实际需要的细节，展开完整内容。不重复做 Proposal 已完成的来源登记与主线判断。保存回执和 pending task 是工作状态，不是批准门。
+**Proposal → Bypage：**交项目目录、记忆、索引、canonical 结构、Workbench head/revision 的绝对路径。Bypage 校验结构和当前 head，直接承接到正式稿，无需先转换工作结构；新 Proposal 3.0 接收每页 claim、supports 和可选 notes，主张用于页面主信息，支撑用于内容展开，备注中的来源与限定完整保留。旧 2.0 继续兼容；已有 Bypage 工作时继续当前文件。继承已读来源及有效读取层，补读页面实际需要的细节，展开完整内容。不重复做 Proposal 已完成的来源登记与主线判断。保存回执和 pending task 是工作状态，不是批准门。
 
-**Bypage → PPT Hell：**在现有 `build-reviewed-copy.mjs` 交付命令上加 `--production-json <deliverable>/production.json --memory <project-memory.md>`；活动工作结构、材料包分别加 `--architecture <path> --materials <path>`。现有核查、完整稿反馈和资产清单检查仍由交付程序执行。结构化导出复用正文解析，携带记忆、索引、正式稿、核查、反馈、原/交付资产清单的规范绝对路径及 SHA256，不由接收模型重新抄页。
+**Bypage → PPT Hell：**在现有 `build-reviewed-copy.mjs` 交付命令上加 `--production-json <deliverable>/production.json --memory <project-memory.md>`；有活动工作结构、材料包时可分别加 `--architecture <path> --materials <path>`。现有核查、完整稿反馈和资产清单检查仍由交付程序执行。结构化导出复用正文解析，携带记忆、索引、正式稿、核查、反馈、原/交付资产清单的规范绝对路径及 SHA256，不由接收模型重新抄页。
 
 ```bash
 python3 <ppt-hell>/scripts/import_bypage.py <new-project> --production <deliverable>/production.json

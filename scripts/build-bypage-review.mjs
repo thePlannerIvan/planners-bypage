@@ -27,7 +27,8 @@ const outputPath = resolve(args['--output']);
 const kind = args['--kind'] || 'final';
 const reviewKind = kind === 'sample' ? 'bypage_sample' : 'bypage';
 // 上一轮**人**做过的决定（只在同一个面之间带）。读不到＝第一轮，行为与原来完全一致。
-const priorRound = readPriorRound(args['--previous'] ? resolve(args['--previous']) : null, reviewKind);
+const workbench = args['--legacy-review'] !== 'true';
+const priorRound = workbench ? null : readPriorRound(args['--previous'] ? resolve(args['--previous']) : null, reviewKind);
 if (kind === 'final' && !args['--assets']) throw new Error('完整 By-page 终审必须提供 --assets，并通过图片视觉检查门禁');
 if (kind === 'final' && !args['--audit']) throw new Error('完整 By-page 终审必须提供当前正式稿的 --audit');
 const copyRaw = readFileSync(copyPath, 'utf8');
@@ -92,7 +93,7 @@ const pages = splitPages(copyRaw).map(({ frontmatter, body }) => {
   return {
     page_number: pageNumber,
     title: scalar(frontmatter, 'page_title'),
-    claim: scalar(frontmatter, 'main_message'),
+    claim: scalar(frontmatter, 'main_message') === scalar(frontmatter, 'page_title') ? '' : scalar(frontmatter, 'main_message'),
     requires_fact_decision: exceptions.length > 0,
     fact_exceptions: exceptions,
     // 上一轮人做过的决定 → 这一页本轮要不要人重新明确选择（以及只读上下文）。
@@ -115,7 +116,6 @@ const pages = splitPages(copyRaw).map(({ frontmatter, body }) => {
   };
 });
 const recheckPages = pages.filter(page => page.requires_recheck);
-const workbench = args['--legacy-review'] !== 'true';
 const context = writeReviewContext(dirname(outputPath),{type:'copy',workbench,reviewKind,sourceSha256,pages,sections:[],imageMap,assetManifestPath,
   files:[{path:copyPath,sha256:sha256(copyRaw)},...(args['--audit'] ? [{path:resolve(args['--audit']),sha256:sha256(auditRaw)}] : []),
     ...(args['--assets'] ? [{path:resolve(args['--assets']),sha256:sha256(readFileSync(resolve(args['--assets'])))}] : [])]});
@@ -126,7 +126,7 @@ const html = renderPageReviewHtml({
   sourceSha256, workbench, allowStructureChanges: false,
   draftPath:context.draftPath,
   pages,
-  notice: reviewNotice(pages, factExceptions.length > 0, recheckPages.length),
+  notice: workbench ? (factExceptions.length ? '存在需保留的事实边界，请查看对应页的事实核查说明。编辑自动保存；批注用于请求模型修改。' : '') : reviewNotice(pages, factExceptions.length > 0, recheckPages.length),
   allowUploads: kind === 'final',
 });
 mkdirSync(dirname(outputPath), { recursive: true });

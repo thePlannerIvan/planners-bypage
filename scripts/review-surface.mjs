@@ -94,7 +94,7 @@ export function surfaceDocument(reviewDir, { surface = 'bypage', title, descript
     contract_version: 'review-surface/2.0.0',
     id: spec.id,
     title: title || spec.title,
-    description: description || spec.description,
+    description: description || (context.workbench ? '阅读并编辑完整图文稿，自动保存；查看历史版本，提交批注共同修改。' : spec.description),
     project_root: projectRootRel(reviewDir),
     dir: '.',
     entry: 'index.html',

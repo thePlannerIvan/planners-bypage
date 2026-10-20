@@ -28,7 +28,8 @@ Planners Bypage 将已批准的 Storyline 展开成完整页面，或把多源�
 - 资料来自多个文档，需要先筛选再组织；
 - 已有 Storyline 需要展开，或直接将资料组织成完整页面；
 - 数字、引用、表格和衍生公式需要回到来源审计；
-- 原始图片需要筛选、裁剪、校验并随 By-page 交付。
+- 原始图片需要筛选、裁剪、校验并随 By-page 交付；
+- 页面需要靠关系讲清楚（因果链、流程、分叉、聚簇、时间轴、象限、架构），而此时图还只存在于文字描述里。
 
 不适合：
 
@@ -52,7 +53,7 @@ npx skills add https://github.com/thePlannerIvan/planners-bypage --skill planner
 - [`planners-source-index`](https://github.com/thePlannerIvan/planners-source-index) —— 来源索引契约与唯一校验器
 - [`planners-fact-check`](https://github.com/thePlannerIvan/planners-fact-check) —— 事实核查契约与校验器
 
-写作使用 `slide-copy`，叙事需要时使用 `storytelling`；方法查询沿用 Proposal 的 Method Wiki 入口。方法 Skill 在当前环境缺失时如实报告，不把公共模组安装器当成它们的安装入口。
+写作使用 `slide-copy`，叙事需要时使用 `storytelling`；遇到不熟悉的专业知识、分析方法或论证问题时直接调用 `planners-method-wiki`，沿用项目中已采用的方法。方法 Skill 在当前环境缺失时如实报告，不把公共模组安装器当成它们的安装入口。
 
 某个模组不在本地时，本 Skill 的适配器会**自动从 GitHub 装它**，不需要手动准备。适配器找的地方按顺序：
 
@@ -129,7 +130,23 @@ git clone https://github.com/thePlannerIvan/planners-bypage.git ~/.claude/skills
 展开完整逐页内容，核查并审阅后交付 by-page.md 与图片资产。
 ```
 
-默认直接审阅完整 By-page。已有用户决定继续沿用；关键选择仍需用户裁定。旧 Storyline/sample 审阅 CLI 保留用于已有项目续接，不是新项目的常规审批关卡。
+默认直接审阅完整 By-page。`bypage-draft.md` 是唯一可编辑正文，标题通常就是主张，备注按需填写；无需另建工作架构和材料包。编辑自动保存，版本入口负责查看与恢复，反馈任务用于请模型一起改。已有用户决定继续沿用；关键选择仍需用户裁定。旧 Storyline/sample 审阅 CLI 保留用于已有项目续接，不是新项目的常规审批关卡。
+
+### 示意图：让图在审阅时就已经存在
+
+页面要靠关系讲清楚时，正文里不该是一段 ASCII 图或"这里放一张流程图"。本 Skill 用 `pele`（Mermaid 语法 → 纯 SVG，零依赖、不需要浏览器）把图渲染成真文件，走图片通道：
+
+```bash
+node scripts/render-diagrams.mjs --manifest .bypage-work/diagram-manifest.json --assets .bypage-work/asset-manifest.json --copy by-page.md
+node scripts/validate-diagrams.mjs --manifest .bypage-work/diagram-manifest.json --assets .bypage-work/asset-manifest.json --copy by-page.md --final --check-render
+```
+
+- 正文只留 `![意图](diagrams/asset-xxx.svg)`，与照片完全同构，审阅页直接显示、生产导出直接带走；
+- 文字源（Mermaid）留在 `diagram-manifest.json`，图里的字因此可被事实核查读到，而不是藏在一张图里；
+- 渲染确定性钉死在 `pele@1.6.0`：手改 SVG 会被 Hash、`--check-render` 和「图内文字 ⊆ 源」三重挡下；
+- 图是内容阶段的可见化与制作参考，不是终稿版面 —— 上屏由 PPT Hell 决定置入还是重绘。
+
+依赖会在首次使用时自动装到 `~/.planners-modules/pele-pkg`（`PLANNERS_NO_AUTO_INSTALL=1` 可关闭）。画法与取舍见 [示意图生命周期](references/diagram-lifecycle.md)。
 
 ## 交付边界
 
@@ -138,10 +155,11 @@ git clone https://github.com/thePlannerIvan/planners-bypage.git ~/.claude/skills
 ```text
 deliverable/
 ├── by-page.md          # PPT 的逐页内容稿
-└── assets/             # 已确认、已处理的图片资产
+├── assets/             # 已确认、已处理的图片资产
+└── production.json     # 供 PPT Hell 程序导入的制作快照
 ```
 
-过程目录保留工作结构、材料包、资产清单、审阅反馈和事实核查。项目记忆与来源索引沿用最早阶段的活动原件，可能在 `.proposal-work`，不重复创建。完整交接见 [内容交接](references/content-handoff.md)。这些项目材料不应提交到公开 Skill 仓库。
+过程目录保留唯一正式稿、资产清单、Workbench 版本与任务、事实核查；工作结构和材料包按需保留。项目记忆与来源索引沿用最早阶段的活动原件，可能在 `.proposal-work`，不重复创建。完整交接见 [内容交接](references/content-handoff.md)。这些项目材料不应提交到公开 Skill 仓库。
 
 ## 目录结构
 
@@ -159,10 +177,10 @@ planners-bypage/
 ## 可靠性边界
 
 - Source Index 保留原文件与机器审计副本的 Hash 绑定；
-- Page Material Packs 限定每页可用的事实、引用、图片和限制；
+- 正式稿 Sources 提供来源 ID 与定位；复杂取材可使用可选材料包；
 - 事实审计检查实际使用的数字、表格、衍生公式、符号和条件；
 - Asset Manifest 绑定原图、处理图、裁剪参数、内容视觉验证和双 Hash；
-- 完整稿反馈绑定当前正文与事实核查，避免旧批准用于新稿；结构批准不冒充完整稿批准。
+- 完整稿 Workbench 绑定当前正文与事实核查；自动保存、历史版本与恢复和反馈任务分开。
 
 ## 开发与验证
 
@@ -178,27 +196,9 @@ node --test scripts/lib/planners-modules-install.test.mjs
 
 版本变更详见 [CHANGELOG.md](CHANGELOG.md)。
 
-## 从 1.0 升级到 1.1
+## 旧项目续接
 
-1.1 提升了 Source Index、Review Contract 和 Asset Manifest 的版本，并加入二进制文档审计副本、衍生公式操作数引用、符号不匹配检查、图片视觉门禁与交付路径校验。
-
-对于 1.0 时尚未完成的项目，不要混用旧反馈或手工改版本号；请从来源登记阶段重建 Source Index，并重新生成 Asset Manifest 和两轮审阅 Contract。
-
-## 从 1.1 升级到 1.2
-
-> **本节是历史记录。** 1.2 那套审计器（`audit-final-copy.mjs` 四态流程）已于 2026-09-26 退役，事实核查改由公共件 `planners-fact-check` 承担 —— 见 `CHANGELOG.md`。
-
-1.2 把事实审计从“机械命中后批量确认”改为“来源反推的独立归属核对”：所有来源/衍生事实都进入 Review Queue，每个数字展示命中的原文片段，并强制检查主体、指标、时间、单位、限定词和符号。`confirm` 只处理方案数字和非事实编号。
-
-同时新增：
-
-- `audit-final-copy.mjs --help` 和状态感知的 `--next`；
-- 每个模式错误中的必需参数与完整命令模板；
-- Storyline/By-page 反馈按 `history/round-NN.json` 追加留档；
-- 无原生视觉、多语言临时脚本和未知 Python 环境的降级边界；
-- 修复行首列表编号导致同句后续数字被误标为 `non_factual` 的问题。
-
-未完成的 1.1 项目应重新运行 `prepare`。新的 `audit_policy_version` 会自动使旧语义放行失效，然后按 `prepare → confirm → resolve → check` 重建归属审计。
+当前流程见 [SKILL.md](SKILL.md) 和 [审阅页操作](references/workbench.md)。旧审计器与两轮审批的历史见 CHANGELOG，不作为当前运行指令；只有明确恢复旧反馈项目时才使用 legacy 接口。
 
 ## 授权、署名与商业服务
 
@@ -210,3 +210,7 @@ node --test scripts/lib/planners-modules-install.test.mjs
 ## English summary
 
 Planners Bypage is a lightweight, source-traceable pre-production Skill that turns mixed documents and images into a reviewed PPT by-page manuscript and asset package. It does not render PowerPoint files; use [Planner's PPT Hell](https://github.com/thePlannerIvan/planners-ppt-hell) for editable PPT production.
+
+## 自动验证环境
+
+公开 CI 安装 Chromium，并检出公开的跨 Skill 依赖运行完整验收。

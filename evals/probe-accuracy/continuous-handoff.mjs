@@ -64,7 +64,7 @@ writeJson(indexPath, { contract_version: 'source-index/2.0.0', source_root: '.',
     coverage: { status: 'full', scope: 'Whole fictional source' }, anchors: [{ kind: 'heading', value: 'Survey' }] }], blind_spots: [] });
 const memory = join(upstream, 'project-memory.md');
 writeFileSync(memory, '# TEST FIXTURE ONLY\n\nShared memory belongs to this test, not a customer project.\n');
-const architecture = json(join(proposal, 'proposal-co-creation/templates/page-architecture.json'));
+const architecture = json(join(proposal, 'evals/fixtures/page-architecture-v2.json'));
 architecture.pages[0].boundary = '仅限120名中国受访客户的复购意愿，不是实际复购率。';
 architecture.pages[0].chart_brief = '展示78/120=65%，同时保留分母、地区与时间。';
 architecture.pages[0].layout_direction = '正文与图表共享同一限定。';

@@ -307,7 +307,7 @@ assert(!readFileSync(live.feedback_path, 'utf8').includes('pre_check'),
 
 // R10：粒度由产出方定 —— 页面必须允许"不针对任何一页、只说一句整体意见"
 assert((await (await fetch(live.url)).text()).includes('overall_feedback_zh')
-  && (await (await fetch(live.url)).text()).includes('整体意见'),
+  && (await (await fetch(live.url)).text()).includes('id="overallFeedback"'),
   '页面必须保留"只说一句整体意见"那条入口（不是只有逐页）');
 
 // ② 独立路径起→停之后：不留进程、不留端口。

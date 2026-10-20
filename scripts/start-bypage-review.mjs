@@ -58,10 +58,10 @@ const command = [
 if (args['--audit']) command.push('--audit', resolve(args['--audit']));
 if (args['--assets']) command.push('--assets', resolve(args['--assets']));
 if (args['--legacy-review'] === 'true') command.push('--legacy-review', 'true');
-if (existsSync(previousRound)) command.push('--previous', previousRound);
+if (args['--legacy-review'] === 'true' && existsSync(previousRound)) command.push('--previous', previousRound);
 const built = spawnSync(process.execPath, command, { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
 if (built.status !== 0) throw new Error(built.stdout || built.stderr);
-const priorRoundReused = existsSync(previousRound);
+const priorRoundReused = args['--legacy-review'] === 'true' && existsSync(previousRound);
 
 writeSurface(reviewDir, { title });
 

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/thePlannerIvan/planners-bypage/contracts/diagram-manifest.schema.json",
+  "title": "图表清单（文字 → SVG 的源与产物）",
+  "description": "每一张内容级示意图登记两样东西：可核查的文字源（Mermaid）与确定性渲染出的 SVG 产物。正文只引用产物路径，源留在这里供事实核查与重渲染。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "renderer", "diagrams"],
+  "properties": {
+    "contract_version": { "const": "diagram-manifest/1.0.0" },
+    "renderer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "const": "pele" },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preset"],
+      "properties": {
+        "preset": { "enum": ["paper", "ink"] },
+        "font": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "variables": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "maxLength": 200 }
+        }
+      }
+    },
+    "diagrams": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["asset_id", "intent", "syntax", "source", "output", "rendered_sha256"],
+        "properties": {
+          "asset_id": { "type": "string", "pattern": "^asset-[a-z0-9][a-z0-9-]{1,63}$" },
+          "page_number": { "type": "integer", "minimum": 1 },
+          "intent": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "source_id": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "semantic_class": { "enum": ["content_evidence", "narrative", "reference", "uncertain"] },
+          "syntax": { "const": "mermaid" },
+          "source": { "type": "string", "minLength": 1, "maxLength": 50000 },
+          "output": { "type": "string", "minLength": 1, "maxLength": 400 },
+          "rendered_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "type": { "type": ["string", "null"] },
+          "width": { "type": ["integer", "null"], "minimum": 1 },
+          "height": { "type": ["integer", "null"], "minimum": 1 },
+          "options": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "max_width": { "type": "integer", "minimum": 200, "maximum": 4000 },
+              "font_size": { "type": "number", "minimum": 8, "maximum": 48 },
+              "wrap": { "type": "integer", "minimum": 0, "maximum": 40 },
+              "auto_direction": { "type": "boolean" },
+              "frame": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["width", "height"],
+                "properties": {
+                  "width": { "type": "integer", "minimum": 160, "maximum": 6000 },
+                  "height": { "type": "integer", "minimum": 120, "maximum": 6000 }
+                }
+              },
+              "fit": { "enum": ["contain", "width", "height"] }
+            }
+          },
+          "visual_check": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["status"],
+            "properties": {
+              "status": { "enum": ["pending", "passed", "failed"] },
+              "method": { "type": "string", "maxLength": 400 },
+              "notes": { "type": "string", "maxLength": 2000 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

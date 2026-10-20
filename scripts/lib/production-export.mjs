@@ -111,7 +111,7 @@ export function writeProductionExport(options) {
     return {
       page_key: pageKey, identity, page_number: number,
       section_id: scalar(page, 'section_id'), page_type: scalar(page, 'page_type'),
-      title: scalar(page, 'page_title'), main_message: scalar(page, 'main_message'),
+      title: scalar(page, 'page_title'), main_message: scalar(page, 'main_message') || scalar(page, 'page_title'),
       content: section(delivered, 'Page Content', 'Speaker Notes') || content,
       notes: section(page, 'Speaker Notes', 'Production Notes'),
       production_notes: productionNotes, sources: section(page, 'Sources'), assets,

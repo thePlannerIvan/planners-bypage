@@ -12,12 +12,12 @@ assert(skill.includes('name: planners-bypage'), 'frontmatter 必须使用 planne
 assert(skill.includes('$planners-ppt-hell'), '必须明确交给下游 PPT Skill');
 assert(skill.includes('planners-method-wiki') && skill.includes('slide-copy'), '具体方法由独立 Skill 提供');
 assert(existsSync(moduleScript('planners-method-wiki', 'scripts/query-wiki.mjs')), 'Wiki 的实际查询入口可解析');
-assert(skill.includes('活动文件与归属') && skill.includes('没有才新建'), '两入口必须区分复用与新建');
-assert(skill.includes('调用与续检') && !skill.includes('子代理复用（调用方）'), '核查代理规则由 Fact Check 拥有');
+assert(skill.includes('沿用同一') && skill.includes('新项目工作目录'), '两入口必须区分复用与新建');
+assert(skill.includes('按该 Skill 的规则复用') && !skill.includes('子代理复用（调用方）'), '核查代理规则由 Fact Check 拥有');
 const handoff = readFileSync(join(root, 'references/content-handoff.md'), 'utf8');
 assert(handoff.includes('不要求 Proposal') && handoff.includes('恢复原目录'), 'PPT Hell 资料入口无需 Proposal 且须恢复原项目');
 assert(handoff.includes('同一核查员续检') && handoff.includes('同一 Bypage 正式稿'), '返修必须使用同一活动稿件与核查上下文');
-assert(skill.includes('直接打开完整 By-page Workbench'), '默认完整稿 Workbench');
+assert(skill.includes('生成并打开完整图文 Workbench'), '默认完整稿 Workbench');
 assert(jsonOutput(runNode(join(root, 'scripts/validate-page-architecture.mjs'), [join(root, 'templates/page-architecture.json')])).valid, '页面架构模板必须通过');
 assert(jsonOutput(runNode(join(root, 'scripts/validate-bypage.mjs'), [join(root, 'templates/by-page.md')])).valid, 'By-page 模板必须通过');
 

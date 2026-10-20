@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,symlinkSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join,resolve} from 'node:path';
+import {spawnSync} from 'node:child_process';
+import {runContentCommand} from '../../../../00-system/planners-review-core/scripts/content-workbench.mjs';
+import {sha256,writeReviewContext} from '../../../../00-system/planners-review-core/scripts/content-review-contract.mjs';
+const root=resolve(import.meta.dirname,'../..'), temp=mkdtempSync(join(tmpdir(),'bypage-upload-')), dir=join(temp,'review');
+mkdirSync(join(dir,'uploads'),{recursive:true});
+const copy=join(temp,'copy.md'), manifest=join(temp,'assets.json');
+const pages=[1,2].map(n=>({page_number:n,section_id:'sec',title:'Claim '+n,claim:'',sections:['Page Content','Speaker Notes','Production Notes','Sources'].map(label=>({label,value:label==='Page Content'?'Body '+n:''}))}));
+const raw=pages.map(p=>`---\ncontract_version: 1.0.0\npage_number: ${p.page_number}\nsection_id: sec\npage_type: explanation\npage_title: "${p.title}"\n---\n\n${p.sections.map(s=>'## '+s.label+'\n\n'+s.value+'\n').join('\n')}`).join('\n');
+writeFileSync(copy,raw);writeFileSync(manifest,JSON.stringify({contract_version:'asset-manifest/1.1.0',asset_root:'assets',assets:[]}));
+writeFileSync(join(dir,'uploads/image.png'),Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5foAAAAASUVORK5CYII=','base64'));
+writeReviewContext(dir,{type:'copy',reviewKind:'bypage',pages,sections:[],sourceSha256:sha256(raw),files:[{path:copy,sha256:sha256(raw)}]});
+const run=cmd=>runContentCommand({dir,projectRoot:temp},cmd);
+let h=(await run({op:'state'})).head;
+// API response exposes head; read disk if this transport only returns state metadata.
+h=JSON.parse(readFileSync(join(dir,'workbench/head.json')));
+let state=structuredClone(h.state);state.page_order=[2,1];state.attachments={'1':[{path:'uploads/image.png',alt:'Photo'}]};
+assert.equal((await run({op:'save',operation_id:'upload_fixture_01',base_revision:h.revision,state})).ok,true);
+const invoke=(source='src-photo',extra=[])=>spawnSync(process.execPath,[join(root,'scripts/import-review-assets.mjs'),'--workbench',dir,'--manifest',manifest,'--source-id',source,...extra],{encoding:'utf8'});
+let result=invoke('src-photo',['--pages','2']);assert.equal(result.status,0,result.stderr);assert.equal(JSON.parse(result.stdout).imported[0].page_number,2);
+assert.equal(invoke().status,0);let data=JSON.parse(readFileSync(manifest));assert.equal(data.assets.length,1);assert.equal(data.assets[0].visual_check.status,'pending');
+assert.equal(invoke('different-source').status,0);data=JSON.parse(readFileSync(manifest));assert.equal(data.assets.length,2);assert.notEqual(data.assets[0].asset_id,data.assets[1].asset_id);
+const before=readFileSync(manifest,'utf8');h=JSON.parse(readFileSync(join(dir,'workbench/head.json')));
+const draft=structuredClone(h.state);draft.edits.pages['1']={title:'Unsaved'};const draftPath=join(dir,h.context.draftPath);writeFileSync(draftPath,JSON.stringify(draft));
+assert.notEqual(invoke().status,0);assert.equal(readFileSync(manifest,'utf8'),before);writeFileSync(draftPath,JSON.stringify(h.state));
+// Tampered attachment must not copy an external file even if hashes still match.
+const outside=join(temp,'outside.png');writeFileSync(outside,'outside');symlinkSync(outside,join(dir,'uploads/escape.png'));h.state.attachments['1'][0].path='uploads/escape.png';writeFileSync(join(dir,'workbench/head.json'),JSON.stringify(h));writeFileSync(draftPath,JSON.stringify(h.state));
+assert.notEqual(invoke().status,0);assert.equal(readFileSync(manifest,'utf8'),before);
+console.log('PASS: saved Workbench uploads, reordered pages, source-aware dedup, pending inspection, unsaved/escape rejection');

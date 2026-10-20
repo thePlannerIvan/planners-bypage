@@ -10,7 +10,7 @@ Planners Bypage owns the realization of research or proposal judgments. It turns
 |---|---|---|---|
 | Handoff intake | This Skill | Upstream memory, source index, Storyline, structure contract and feedback | Does not silently change upstream direction |
 | Content realization | This Skill | Page-level content tasks and full argument expansion | Does not reduce a Storyline to a summary |
-| Materials and assets | This Skill | Sources, images, material packs and asset manifest | Does not own the global Storyline |
+| Materials and assets | This Skill | Sources, images and asset manifest; optional material packs | Does not own the global Storyline |
 | By-page writing | This Skill | `bypage-draft.md` / `deliverable/by-page.md` | Does not decide PPT layout or template |
 | Review and handoff | This Skill | Fact checks, content review and final asset package | Does not ask Validator to judge rhetorical quality |
 
@@ -24,7 +24,7 @@ The three paths share the same content realization and delivery responsibility a
 
 ## Seams
 
-The shared path/ownership interface is `references/content-handoff.md`. Proposal hands over its preserved memory, source index, canonical structure and current Workbench head. `adapt-proposal-architecture.mjs` converts its vocabulary into a separate working architecture without replacing the original or existing work. PPT Hell passes materials, existing active paths and its resume position. Bypage returns the current production snapshot together with active source, audit and Workbench paths. Changes to a core judgment require a user decision.
+The shared path/ownership interface is `references/content-handoff.md`. Proposal hands over its preserved memory, source index, canonical structure and current Workbench head. The default path expands claims and supports directly into `bypage-draft.md`. `adapt-proposal-architecture.mjs` remains optional for complex working architectures and legacy projects. PPT Hell passes materials, existing active paths and its resume position. Bypage returns the current production snapshot together with active source, audit and Workbench paths. Changes to a core judgment require a user decision.
 
 ## Scope boundary
 
@@ -36,4 +36,4 @@ By-page decides what the audience needs to see and how the argument should be ex
 
 `SKILL.md` owns the five-step workflow. The duplicate `WORKFLOW.md`, eight stage instructions and local writing/language rulebooks were retired; writing uses `slide-copy` and optional `storytelling`. Legacy Storyline/sample review CLIs remain for existing project continuation and regression compatibility, not as required entry gates. Fact-check independence and agent reuse belong to `planners-fact-check`, not Review Core.
 
-The Proposal handoff path no longer rebuilds an abstract duplicate of the saved Storyline and treats that as content work. Material packs are support work after content realization, not a substitute for it.
+The Proposal handoff path no longer rebuilds an abstract duplicate of the saved Storyline and treats that as content work. Working architecture and material packs are optional support files, not prerequisites. The title carries the claim by default; `main_message` is optional. Production export fills its compatibility field from the title when absent. Current uploads import from the saved Workbench; feedback imports are legacy only.

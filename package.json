@@ -1,6 +1,6 @@
 {
   "name": "planners-bypage",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "description": "展开已有 Storyline 或组织多源资料，核查并审阅完整逐页内容后交给 PPT 制作",
   "license": "AGPL-3.0-only",
@@ -20,6 +20,7 @@
     "test:review": "node evals/review/run.mjs",
     "test:assets": "node evals/assets/run.mjs",
     "test:fact-audit": "node evals/fact-audit/run.mjs",
+    "test:diagrams": "node evals/diagrams/run.mjs",
     "test:handoff": "node evals/handoff/run.mjs",
     "test": "node evals/run-all.mjs"
   },
