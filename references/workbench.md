@@ -18,13 +18,15 @@ DSH 有 `review_open` 时加 `--surface-only`，把返回的 surface 路径交�
 
 读取 `<R>/workbench/head.json` 与当前 `<D>`。直接编辑的内容已进入正式稿；page_mapping 表示重排后的页码。处理 pending tasks 前记录其 task_id、revision、source_hash 和 pages，按范围完成修改、素材检查与必要续检。
 
-完成指定任务后，使用最初捕获的任务版本标记任务完成，再重建 Workbench：
+任务基线跟着 head 走：人提交批注后页面常会再自动保存一次，你也可能先重建再标记，这两种动作都会推进 head.revision，pending 任务的 revision/source_hash 随之重定。所以标记完成时用**当前 head**（`workbench/head.json` 的 revision 与 source_hash），不要用唤醒语里捕获的那一版——那一版通常已经过期。
+
+完成指定任务后，用当前 head 标记任务完成，再重建 Workbench：
 
 ```bash
-node "<Skill>/scripts/finish-review-task.mjs" --review-dir "<R>" --task-id "<task_id>" --revision "<原revision>" --source-hash "<原source_hash>"
+node "<Skill>/scripts/finish-review-task.mjs" --review-dir "<R>" --task-id "<task_id>" --revision "<当前 head.revision>" --source-hash "<当前 head.source_hash>"
 ```
 
-冲突回执表示状态已经变化；重新读取当前 head，保留用户草稿，不覆盖或直接清空任务。没有任务就不运行完成命令。核查结果或资产变化后也重建审阅，不能沿用旧依赖绑定。
+冲突回执表示状态已经变化；重新读取当前 head 再标一次，保留用户草稿，不覆盖或直接清空任务。没有任务就不运行完成命令。核查结果或资产变化后也重建审阅，不能沿用旧依赖绑定。
 
 ## 用户上传图片
 
