@@ -4,108 +4,63 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-2563eb)](LICENSE)
 [![Validation](https://github.com/thePlannerIvan/planners-bypage/actions/workflows/validate.yml/badge.svg)](https://github.com/thePlannerIvan/planners-bypage/actions/workflows/validate.yml)
 
-Planners Bypage 将已批准的 Storyline 展开成完整页面，或把多源资料组织成页面，经事实核查和完整图文审阅后交给 PPT 制作。
-
-**它不制作 PPTX。** By-page 完成后，请使用 [Planner's PPT Hell](https://github.com/thePlannerIvan/planners-ppt-hell) 完成模板、Layout、SVG、视觉审阅和可编辑 PowerPoint 导出。
+**把确定下来的 Storyline，或者一桌杂乱的多文档和图片素材，变成每一页都能直接看、直接改、配好真图、而且每个数字都过过审计的 PPT 逐页文案包。**
 
 > 作者：阿祖不看 TVC（小红书同名）· [demyth.info](https://demyth.info) · [Lawyif@163.com](mailto:Lawyif@163.com)
 
-## 它解决什么
+---
 
-两条入口共用一条内容流程，来源、项目记忆和核查记录可以顺序承接：
+## 一句话看懂：它帮你做什么（以及不做什么）
+
+写长 PPT 最痛苦的是两个极端：要么让 AI 空写大纲，字少得没法交差；要么资料没对口径直接画 PPT，排版好了才发现某一页算错了数据、配错了图，返工崩溃。
+
+**Planners Bypage** 卡在“定主线”和“做 PPT 版面”之间，只把一件事做到位——**产出经得起核查、图文齐备的逐页稿**：
 
 ```text
-接手与理解 → 页面展开与取材 → 完整逐页稿
-→ 独立核查 + 完整图文审阅 ↔ 修改 → PPT 交接
+3 个入口之一：Proposal 主线 / 杂乱多文档+原图 / PPT 阶段内容返修
+  → 1. 读懂材料与意图，记录未读盲区（二进制 PDF/DOCX 缺抽取器会主动提醒或补救）
+  → 2. 扩写每页完整文案 + 筛选裁剪真实图片 + 复杂关系自动画成可见 SVG 示意图
+  → 3. 召唤独立上下文事实核查员（核对数字、分母、主体与限定条件）
+  → 4. 打开图文混排审阅台（自动保存 / 拖曳调页序 / 局部提交修改）
+  → 交付：deliverable/ 制作包（by-page.md + assets/ + production.json）→ 交给 planners-ppt-hell
 ```
 
-它允许重组和改写，但不得改变来源中的事实、数字、符号和限定条件。
+**明确边界：它不生成 `.pptx` 文件。** 排版、品牌模板和 PowerPoint 导出交给下一棒 [`planners-ppt-hell`](https://github.com/thePlannerIvan/planners-ppt-hell)。
 
-## 适用与不适用
+---
 
-适合：
+## 核心亮点：为什么比普通“写个逐页文案”靠谱
 
-- 资料来自多个文档，需要先筛选再组织；
-- 已有 Storyline 需要展开，或直接将资料组织成完整页面；
-- 数字、引用、表格和衍生公式需要回到来源审计；
-- 原始图片需要筛选、裁剪、校验并随 By-page 交付；
-- 页面需要靠关系讲清楚（因果链、流程、分叉、聚簇、时间轴、象限、架构），而此时图还只存在于文字描述里。
+- **不会出现“此处放一张流程图”的空气占位符**：页面需要因果链、路径、分叉或时间轴时，自带 `pele` 引擎直接把关系画成可见的纯 SVG 示意图嵌入同一图文审阅台；图里写的文字也会被事实核查器一并查验。
+- **真实图片资产全检入**：帮忙筛选、裁剪、校验项目自带配图并记清来源，交付时随着逐页稿打包进 `assets/` 和 `production.json`，下个环节不用满文件夹找图。
+- **独立上下文防自夸核查**：完稿给用户看之前，会自动调用 [`planners-fact-check`](https://github.com/thePlannerIvan/planners-fact-check) 拿着原资料对照成品重算指标，堵住改稿时的口径漂移。
+- **所见即改的图文审阅台**：网页打开就是完整每页正文、真图和备注。你可以直接改字、悬停拖曳页序、查看/恢复历史版本，也能单对某一页发起批注让 AI 只重修那几页。
 
-不适合：
+---
 
-- 希望直接获得排版完成的 `.pptx`；
-- 只需要一次简单文档摘要；
-- 来源为扫描 PDF，但环境中没有 OCR 能力且不允许人工确认。
+## 什么时候选我 vs 选别的 Skill
 
-## 安装
+| 你的现状 | 选哪个 Skill | 理由 |
+| --- | --- | --- |
+| 还在摸索方向、资料冲突大，不确定整体分几章讲什么 | 先用 [`Planners-Proposal-System`](https://github.com/thePlannerIvan/Planners-Proposal-System) | 先在轻量 Storyline 里把主张和取舍磨透 |
+| 主线已定，或者材料现成但混乱，要快速写出每页详细文案+真图+过数字核查 | **本 Skill (`planners-bypage`)** | 专注把每一页内容写实、图配齐、数字查准 |
+| 逐页文案都定完了，现在要套模板、画排版、导出可编辑 `.pptx` | 直接用 [`planners-ppt-hell`](https://github.com/thePlannerIvan/planners-ppt-hell) | 专攻视觉版式设计、模板复用和可编辑 PPTX 导出 |
 
-通用 Skills CLI：
+---
+
+## 快速开始与安装
+
+### 1. DSH 用户（推荐）
+
+通过 [Planners Form](https://github.com/thePlannerIvan/planners-form) 在 DSH 设置里勾选 `planners-bypage` 一键安装。
+
+### 2. Codex / Claude Code 用户
 
 ```bash
 npx skills add https://github.com/thePlannerIvan/planners-bypage --skill planners-bypage
 ```
 
-## 公共模组（缺了会自动装）
-
-本 Skill 依赖若干**公共模组**（独立发布的条目，不是本仓库的一部分）：
-
-- [`planners-review-core`](https://github.com/thePlannerIvan/planners-review-core) —— 审阅面契约、桥与本地宿主
-- [`planners-source-index`](https://github.com/thePlannerIvan/planners-source-index) —— 来源索引契约与唯一校验器
-- [`planners-fact-check`](https://github.com/thePlannerIvan/planners-fact-check) —— 事实核查契约与校验器
-
-写作使用 `slide-copy`，叙事需要时使用 `storytelling`；遇到不熟悉的专业知识、分析方法或论证问题时直接调用 `planners-method-wiki`，沿用项目中已采用的方法。方法 Skill 在当前环境缺失时如实报告，不把公共模组安装器当成它们的安装入口。
-
-某个模组不在本地时，本 Skill 的适配器会**自动从 GitHub 装它**，不需要手动准备。适配器找的地方按顺序：
-
-1. `$PLANNERS_MODULES_HOME/<模组名>`
-2. 本 Skill 的兄弟目录 `<skills-root>/<模组名>`（发布后的主路径）
-3. monorepo 里 `02-skills-library/<分类>/<模组名>`
-4. **用户级安装根**：`$PLANNERS_MODULES_INSTALL_DIR` → `$PLANNERS_MODULES_HOME`（仅当它已含该模组，或那目录还不存在）→ 默认 `~/.planners-modules/<模组名>`
-
-前三条都没有时才自动安装（顺序不变，**本地永远优先、不会无条件联网**）；装到第 4 条那个**库外**用户级目录，**绝不写进** `02-skills-library` 工作树、`~/.codex|~/.claude|~/.gemini` 的技能目录、或任何系统目录。安装过程**不静默**：会打印缺哪个、找过哪些路径、从哪个 URL 装、装到哪、用的是 `git clone --depth 1` 还是 `npx skills add`、以及装到的 **commit**。装完先在暂存目录里验证（`SKILL.md` + 该模组声明的契约/校验器锚点文件都在），再用 rename 原子就位；**任何失败都会清掉暂存、不留半成品**，并给出可复制的手动安装命令。
-
-要它**只报不装**（CI／离线／审计）：
-
-```bash
-PLANNERS_NO_AUTO_INSTALL=1 <你的命令>
-```
-
-| 环境变量 | 作用 |
-|---|---|
-| `PLANNERS_MODULES_HOME` | 指定已有模组所在目录（解析第 1 条，也兼作安装根） |
-| `PLANNERS_MODULES_INSTALL_DIR` | 只指定**自动安装**的落点（优先级高于上面那条） |
-| `PLANNERS_MODULES_REF` | 要钉的 tag 或分支（不设 = 装默认分支 HEAD） |
-| `PLANNERS_NO_AUTO_INSTALL=1` | 只报不装；缺依赖时如实失败并打印手动命令 |
-
-装的是**默认分支 HEAD**，日志里**永远打 commit**；HEAD 恰好被某个 tag 指着时，tag 也一并打出来。想钉版本就设 `PLANNERS_MODULES_REF`：
-
-```bash
-PLANNERS_MODULES_REF=v1.0.0 <你的命令>     # 钉在 tag 上
-PLANNERS_MODULES_REF=main   <你的命令>     # 钉在某个分支上
-```
-
-钉了不存在的 ref 会**如实失败**（不会悄悄退回 HEAD），错误里带正确的可复制命令。
-
-### 两条命令别搞混：谁装 Skill，谁抓依赖
-
-**用户装一个 Skill** —— 用 Skills CLI，它会把条目放进各 agent 的技能目录：
-
-```bash
-npx skills add https://github.com/thePlannerIvan/<Skill 名> --skill <Skill 名>
-```
-
-**Skill 自己抓一个公共模组（内部依赖）** —— 用 `git clone`，落在库外的单一安装根：
-
-```bash
-git clone --depth 1 https://github.com/thePlannerIvan/<模组名>.git \
-  "$HOME/.planners-modules/<模组名>"
-# 想钉版本：加 --branch v1.0.0
-```
-
-**内部依赖为什么不走 `npx skills add`**：它没有 `--dir` 之类的落点参数，只会写进 `~/.claude/skills`、`~/.codex/skills` 这类 **runtime 技能目录**（那是发布器的领地，写进去等于多一份漂移副本）；而且它下载的目录**不带 `.git`**，拿不到 commit、也就没法追溯装的是哪一版。**门面命令归用户，内部依赖归 clone** —— 上面自动安装走的就是这条。
-
-
-也可直接放入 Codex 或 Claude 的 Skill 目录：
+或克隆到本地 Skill 目录：
 
 ```bash
 git clone https://github.com/thePlannerIvan/planners-bypage.git ~/.codex/skills/planners-bypage
@@ -113,104 +68,79 @@ git clone https://github.com/thePlannerIvan/planners-bypage.git ~/.codex/skills/
 git clone https://github.com/thePlannerIvan/planners-bypage.git ~/.claude/skills/planners-bypage
 ```
 
-## 环境要求
-
-- Node.js 20+；
-- PDF 建议安装 `pdftotext`；
-- DOCX / ODT / RTF 建议安装 `pandoc`；
-- 旧版 Word 或 PPT/PPTX 文本转换建议安装 LibreOffice（`soffice`）；
-- 扫描件需要额外 OCR 工具。
-
-转换工具缺失时，Skill 应该显式报告无法建立机器审计副本，而不是把未验证内容伪装成已审计事实。
-
-## 使用
+### 3. 直接这样开始
 
 ```text
-使用 $planners-bypage，接收已有 Storyline 或整理这些资料，
-展开完整逐页内容，核查并审阅后交付 by-page.md 与图片资产。
+使用 $planners-bypage 接手刚才定好的 Storyline（或这个文件夹里的多份资料与图片）：
+帮我展开成完整逐页内容，需要流程图的地方直接画出来，做完事实核查后打开审阅台让我修改。
 ```
 
-默认直接审阅完整 By-page。`bypage-draft.md` 是唯一可编辑正文，标题通常就是主张，备注按需填写；无需另建工作架构和材料包。编辑自动保存，版本入口负责查看与恢复，反馈任务用于请模型一起改。已有用户决定继续沿用；关键选择仍需用户裁定。旧 Storyline/sample 审阅 CLI 保留用于已有项目续接，不是新项目的常规审批关卡。
+### 运行时依赖与推荐工具
 
-### 示意图：让图在审阅时就已经存在
+- **基础运行**：Node.js 20+（解析 PDF/Word/PPT 原文建议本机有 `pdftotext`、`pandoc`、`soffice`）。有 DSH 时挂入侧栏审阅，无 DSH 时自动起本地浏览器页面。
+- **自动按需加载的公共模组**（首次缺失时自动拉取至 `~/.planners-modules/`）：
+  - [`planners-source-index`](https://github.com/thePlannerIvan/planners-source-index) —— 原文回源定位与盲区登记
+  - [`planners-fact-check`](https://github.com/thePlannerIvan/planners-fact-check) —— 审阅前独立上下文数字与引用审计
+  - [`planners-review-core`](https://github.com/thePlannerIvan/planners-review-core) —— 图文审阅工作台桥接与本地宿主
+  - 另含示意图引擎 `pele@1.6.0`（首次画图自动安装至 `~/.planners-modules/pele-pkg`）
+- **协同写作 Skill**（环境中已装时按需配合）：[`slide-copy`](https://github.com/thePlannerIvan/slide-copy)、[`storytelling`](https://github.com/thePlannerIvan/storytelling)、[`planners-method-wiki`](https://github.com/thePlannerIvan/planners-method-wiki)。
 
-页面要靠关系讲清楚时，正文里不该是一段 ASCII 图或"这里放一张流程图"。本 Skill 用 `pele`（Mermaid 语法 → 纯 SVG，零依赖、不需要浏览器）把图渲染成真文件，走图片通道：
+---
+
+<details>
+<summary>开发者说明：环境变量、交付物清单、目录结构与验收命令（普通用户可忽略）</summary>
+
+### 最终交付目录 `deliverable/`
+
+```text
+deliverable/
+├── by-page.md          # 带标题、正文、备注、制作意图与 Sources 定位的逐页正式稿
+├── assets/             # 已筛检裁剪的图片资产与 pele 生成的 SVG 示意图
+└── production.json     # 供 planners-ppt-hell 导入的结构化生产快照
+```
+
+### 公共模组解析与示意图确定性校验
+
+适配器（`scripts/lib/planners-modules.mjs`）按以下顺序本地优先查找公共模组：
+`$PLANNERS_MODULES_HOME` → `<skills-root>` → `02-skills-library/<分类>` → 用户级目录（`$PLANNERS_MODULES_INSTALL_DIR` → `$PLANNERS_MODULES_HOME` → `~/.planners-modules/`）。设 `PLANNERS_NO_AUTO_INSTALL=1` 可禁止联网安装；`PLANNERS_MODULES_REF` 可锁定分支/tag。
+
+示意图文字源留在 `.bypage-work/diagram-manifest.json` 供事实核查阅读，`pele@1.6.0` 通过校验门防止手工篡改 SVG 文本导致图文不一致：
 
 ```bash
 node scripts/render-diagrams.mjs --manifest .bypage-work/diagram-manifest.json --assets .bypage-work/asset-manifest.json --copy by-page.md
 node scripts/validate-diagrams.mjs --manifest .bypage-work/diagram-manifest.json --assets .bypage-work/asset-manifest.json --copy by-page.md --final --check-render
 ```
 
-- 正文只留 `![意图](diagrams/asset-xxx.svg)`，与照片完全同构，审阅页直接显示、生产导出直接带走；
-- 文字源（Mermaid）留在 `diagram-manifest.json`，图里的字因此可被事实核查读到，而不是藏在一张图里；
-- 渲染确定性钉死在 `pele@1.6.0`：手改 SVG 会被 Hash、`--check-render` 和「图内文字 ⊆ 源」三重挡下；
-- 图是内容阶段的可见化与制作参考，不是终稿版面 —— 上屏由 PPT Hell 决定置入还是重绘。
+### 测试与目录结构
 
-依赖会在首次使用时自动装到 `~/.planners-modules/pele-pkg`（`PLANNERS_NO_AUTO_INSTALL=1` 可关闭）。画法与取舍见 [示意图生命周期](references/diagram-lifecycle.md)。
-
-## 交付边界
-
-最终交付包至少包含：
-
-```text
-deliverable/
-├── by-page.md          # PPT 的逐页内容稿
-├── assets/             # 已确认、已处理的图片资产
-└── production.json     # 供 PPT Hell 程序导入的制作快照
+```bash
+npm ci && npm test
+node --test scripts/lib/planners-modules-install.test.mjs
 ```
-
-过程目录保留唯一正式稿、资产清单、Workbench 版本与任务、事实核查；工作结构和材料包按需保留。项目记忆与来源索引沿用最早阶段的活动原件，可能在 `.proposal-work`，不重复创建。完整交接见 [内容交接](references/content-handoff.md)。这些项目材料不应提交到公开 Skill 仓库。
-
-## 目录结构
 
 ```text
 planners-bypage/
 ├── SKILL.md
 ├── agents/openai.yaml
-├── contracts/           # 页面架构、材料包、资产清单契约
-├── evals/               # 结构 / 审阅 / 图片 / 事实核查 / 交付回归
-├── references/          # 内容交接、图片生命周期、来源阅读与维护架构
-├── scripts/             # 校验器、审阅接缝、资产导入与终稿装配
+├── contracts/           # 页面架构、材料包与资产清单契约
+├── evals/               # 结构 / 审阅 / 图片 / 事实核查 / 交付五类回归测试
+├── references/          # 内容交接、图片生命周期、示意图生命周期与工作台指南
+├── scripts/             # 校验器、审阅台生成、资产处理与交付装配
 └── templates/           # source-index / page-architecture / asset-manifest / by-page
 ```
 
-## 可靠性边界
+</details>
 
-- Source Index 保留原文件与机器审计副本的 Hash 绑定；
-- 正式稿 Sources 提供来源 ID 与定位；复杂取材可使用可选材料包；
-- 事实审计检查实际使用的数字、表格、衍生公式、符号和条件；
-- Asset Manifest 绑定原图、处理图、裁剪参数、内容视觉验证和双 Hash；
-- 完整稿 Workbench 绑定当前正文与事实核查；自动保存、历史版本与恢复和反馈任务分开。
+---
 
-## 开发与验证
+## 品牌边界、开源协议与商业合作
 
-```bash
-npm ci
-npm test
+- **许可协议**：以 [AGPL-3.0-only](LICENSE) 发布，可商业使用，修改版或通过网络提供的服务须公开源码。
+- **署名边界**：出处保留在 [NOTICE](NOTICE)；工作过程文档可留作者信息，默认不写入客户最终交付稿；商标与二开要求见 [TRADEMARK.md](TRADEMARK.md)。
+- **商业支持**：工作流定制、私有部署、企业培训或闭源授权，请联系 `Lawyif@163.com` 或访问 [demyth.info](https://demyth.info)，详见 [COMMERCIAL.md](COMMERCIAL.md)。
 
-# 公共模组自动安装器自己的测试
-node --test scripts/lib/planners-modules-install.test.mjs
-```
+## 相关项目
 
-公开验证集包含结构、审阅 Contract、图片、事实审计和交付五类测试。详见 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [SECURITY.md](SECURITY.md)。
-
-版本变更详见 [CHANGELOG.md](CHANGELOG.md)。
-
-## 旧项目续接
-
-当前流程见 [SKILL.md](SKILL.md) 和 [审阅页操作](references/workbench.md)。旧审计器与两轮审批的历史见 CHANGELOG，不作为当前运行指令；只有明确恢复旧反馈项目时才使用 legacy 接口。
-
-## 授权、署名与商业服务
-
-- 代码以 [AGPL-3.0-only](LICENSE) 发布；
-- 请保留 [NOTICE](NOTICE) 中的项目来源和作者信息；
-- 修改版应明确标注 fork 或改动，不得暗示官方背书，详见 [TRADEMARK.md](TRADEMARK.md)；
-- 闭源授权、私有部署、工作流定制和培训见 [COMMERCIAL.md](COMMERCIAL.md)。
-
-## English summary
-
-Planners Bypage is a lightweight, source-traceable pre-production Skill that turns mixed documents and images into a reviewed PPT by-page manuscript and asset package. It does not render PowerPoint files; use [Planner's PPT Hell](https://github.com/thePlannerIvan/planners-ppt-hell) for editable PPT production.
-
-## 自动验证环境
-
-公开 CI 安装 Chromium，并检出公开的跨 Skill 依赖运行完整验收。
+- [Planners Proposal System](https://github.com/thePlannerIvan/Planners-Proposal-System) —— 上游策略共创与 Storyline 工作台
+- [Planner's PPT Hell](https://github.com/thePlannerIvan/planners-ppt-hell) —— 下游 SVG 页面制作与可编辑 `.pptx` 导出
+- [Planners Fact Check](https://github.com/thePlannerIvan/planners-fact-check) —— 独立上下文事实漂移审计
