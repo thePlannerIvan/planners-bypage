@@ -3,8 +3,33 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { moduleScript } from './planners-modules.mjs';
 import {reviewSourceHash} from './review-source-hash.mjs';
-const {sha256, contentHash, contentProjection, validateChanges, writeReviewContext} = await import(pathToFileURL(moduleScript('planners-review-core','scripts/content-review-contract.mjs')));
-export {sha256, contentHash, contentProjection, writeReviewContext};
+const {sha256, canonical, contentHash, contentProjection, validateChanges, writeReviewContext} = await import(pathToFileURL(moduleScript('planners-review-core','scripts/content-review-contract.mjs')));
+export {sha256, canonical, contentHash, contentProjection, writeReviewContext};
+
+// 按页指纹：architecture 每页按 page_number 取整个 page 对象的 canonical JSON；
+// copy 用 splitCopy 切页，值取该段文本的 sha256。解析不了返回 null → 工作台退回整文件行为。
+const unitHash = value => sha256(JSON.stringify(canonical(value)));
+export function unitHashes(raw) {
+  const text = String(raw ?? '');
+  if (text.trimStart().startsWith('{')) {
+    let doc;
+    try { doc = JSON.parse(text); } catch { return null; }
+    if (!doc || !Array.isArray(doc.pages)) return null;
+    const pages = {};
+    for (const page of doc.pages) if (page && page.page_number !== undefined && page.page_number !== null) pages[String(page.page_number)] = unitHash(page);
+    const sections = {};
+    for (const section of Array.isArray(doc.sections) ? doc.sections : []) if (section?.section_id) sections[String(section.section_id)] = unitHash(section);
+    return {pages, sections};
+  }
+  const pages = {};
+  let segments;
+  try { segments = splitCopy(text); } catch { return null; }
+  for (const segment of segments) {
+    const match = segment.match(/^page_number:\s*(\d+)/m);
+    if (match) pages[match[1]] = sha256(segment);
+  }
+  return Object.keys(pages).length ? {pages, sections: {}} : null;
+}
 
 export function splitCopy(raw) {
   return [...raw.replace(/\r\n/g,'\n').matchAll(/(?:^|\n)(---\n[\s\S]*?\n---\n[\s\S]*?)(?=\n---\ncontract_version:|$)/g)].map(m => m[1].trimEnd());

@@ -14,7 +14,17 @@ if (!input) finish(false, [{ code: 'arg_error', message: '用法：validate-page
 let doc;
 try { doc = JSON.parse(readFileSync(resolve(input), 'utf8')); } catch (error) { finish(false, [{ code: 'file_error', message: error.message }], 2); }
 const errors = [];
-if (doc.contract_version !== 'page-architecture/1.0.0') errors.push({ code: 'contract_version', message: 'contract_version 无效' });
+if (doc.contract_version === 'page-architecture/3.0.0' || doc.contract_version === '3.0') {
+  // 3.0 是 Proposal 交给 Bypage 的主线契约，不是本脚本校验的工作结构。
+  // 用错校验器会把人引到「回填旧字段」这条错路上，所以给一条能照着走的错误。
+  errors.push({
+    code: 'contract_version_not_owned_here',
+    message: '这是 page-architecture/3.0.0（Proposal 主线契约），本脚本只校验 1.0 工作结构；'
+      + '请用 planners-proposal-system/proposal-co-creation/scripts/validate-page-architectures.mjs <file> --ready',
+  });
+} else if (doc.contract_version !== 'page-architecture/1.0.0') {
+  errors.push({ code: 'contract_version', message: 'contract_version 无效' });
+}
 if (!/^pj_[a-f0-9]{24}$/.test(doc.project_id || '')) errors.push({ code: 'project_id', message: 'project_id 无效' });
 if (!String(doc.storyline_thesis || '').trim()) errors.push({ code: 'storyline_thesis', message: 'storyline_thesis 不能为空' });
 const sectionIds = new Set();

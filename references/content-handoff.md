@@ -25,7 +25,7 @@
 
 ## 两次交接
 
-**Proposal → Bypage：**交项目目录、记忆、索引、canonical 结构、Workbench head/revision 的绝对路径。Bypage 校验结构和当前 head，直接承接到正式稿，无需先转换工作结构；新 Proposal 3.0 接收每页 claim、supports 和可选 notes，主张用于页面主信息，支撑用于内容展开，备注中的来源与限定完整保留。旧 2.0 继续兼容；已有 Bypage 工作时继续当前文件。继承已读来源及有效读取层，补读页面实际需要的细节，展开完整内容。不重复做 Proposal 已完成的来源登记与主线判断。保存回执和 pending task 是工作状态，不是批准门。
+**Proposal → Bypage：**交项目目录、记忆、索引、canonical 结构、Workbench head/revision 的绝对路径。Bypage 校验结构和当前 head，直接承接到正式稿，无需先转换工作结构（3.0 用 `planners-proposal-system/proposal-co-creation/scripts/validate-page-architectures.mjs --ready` 校验；本 Skill 的 `validate-page-architecture.mjs` 只管 1.0 工作结构，遇到 3.0 会明确指路）；新 Proposal 3.0 接收每页 claim、supports 和可选 notes，主张用于页面主信息，支撑用于内容展开，备注中的来源与限定完整保留。旧 2.0 继续兼容；已有 Bypage 工作时继续当前文件。继承已读来源及有效读取层，补读页面实际需要的细节，展开完整内容。不重复做 Proposal 已完成的来源登记与主线判断。保存回执和 pending task 是工作状态，不是批准门。
 
 **Bypage → PPT Hell：**在现有 `build-reviewed-copy.mjs` 交付命令上加 `--production-json <deliverable>/production.json --memory <project-memory.md>`；有活动工作结构、材料包时可分别加 `--architecture <path> --materials <path>`。现有核查、完整稿反馈和资产清单检查仍由交付程序执行。结构化导出复用正文解析，携带记忆、索引、正式稿、核查、反馈、原/交付资产清单的规范绝对路径及 SHA256，不由接收模型重新抄页。
 

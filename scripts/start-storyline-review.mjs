@@ -80,7 +80,7 @@ if (process.argv.includes('--surface-only') || process.argv.includes('--no-host'
   if (args['--legacy-review'] === 'true') Object.assign(payload, { submissions_path: submissionsPath(reviewDir), feedback_path: feedbackPath(reviewDir),
     next_action_zh: '请在网页提交；然后跑 scripts/review-inbox.mjs 收件，再跑 validate-storyline-review-feedback.mjs。' });
   else Object.assign(payload, workbenchReport(reviewDir, JSON.parse(readFileSync(join(reviewDir, 'review-context.json'), 'utf8')).sourceSha256), {
-    next_action_zh: '打开工作台后，先读取 review-context.json 与 canonical_path；Storyline 的保存会回写同一份结构主稿。需要处理反馈时读取 workbench/head.json 的 pending tasks，并按 task 的 revision/source_hash 修改；保存不是批准。'
+    next_action_zh: '打开工作台后，先读取 review-context.json 与 canonical_path；Storyline 的保存会回写同一份结构主稿。需要处理反馈时读取 workbench/head.json 的 pending tasks，按 task.pages/page_hashes 处理指定页；标完成不再要求整份 revision/source_hash 一致。保存不是批准。'
   });
   process.stdout.write(JSON.stringify(payload) + '\n');
 }

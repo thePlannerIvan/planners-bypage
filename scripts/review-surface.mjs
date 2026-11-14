@@ -103,7 +103,7 @@ export function surfaceDocument(reviewDir, { surface = 'bypage', title, descript
     // 唤醒走**插话**（steer → next-step）：提交的语义是"现在就改"。`queue` 会排到当前回合之后，
     // 模型正忙时它躺在持久队列里，界面上同时出现「已送达」与「排队中」两份。
     wake: { mode: 'steer', text: context.workbench
-      ? '内容工作台有修改任务（{unit}）。读取 workbench/head.json 的 pending tasks 与已保存主稿；按 task 的 revision/source_hash/pages 修改，先保护未收下的草稿。直接保存不需审批；修改后重核变化的事实和图片并重新生成工作台。' : spec.wake },
+      ? '内容工作台有修改任务（{unit}）。读取 workbench/head.json 的 pending tasks 与已保存主稿；按 task.pages/page_hashes 处理指定页，先保护未收下的草稿。直接保存不需审批；修改后重核变化的事实和图片并重新生成工作台。' : spec.wake },
     // 页面要往审阅目录里上传替换图片（宿主必须做包含性校验）。声明为空就是为空。
     capabilities: ['asset-upload','draft', ...(context.workbench ? ['command'] : [])],
     ...(context.workbench ? {command_backend:'content-workbench/1'} : {}),
