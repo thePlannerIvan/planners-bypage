@@ -1,0 +1,14 @@
+{
+  "contract": "doc-assets/1",
+  "doc": "labbrand-by-page.md",
+  "assets": [
+    {
+      "path": "assets/circadian-moments.svg",
+      "kind": "svg",
+      "sha256": "59bd35c10c29e1fc08fe1fcb5273333f4413299d9c26ab5049afd902d0b9aa1b",
+      "bytes": 925,
+      "anchors": [],
+      "alt": "下午三点与睡前两个状态切换时点"
+    }
+  ]
+}

@@ -22,7 +22,8 @@
     "test:fact-audit": "node evals/fact-audit/run.mjs",
     "test:diagrams": "node evals/diagrams/run.mjs",
     "test:handoff": "node evals/handoff/run.mjs",
-    "test": "node evals/run-all.mjs"
+    "test": "node evals/run-all.mjs",
+    "test:bypage-doc": "node evals/bypage-doc/run.mjs"
   },
   "repository": {
     "type": "git",

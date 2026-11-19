@@ -21,8 +21,8 @@
   → 1. 读懂材料与意图，记录未读盲区（二进制 PDF/DOCX 缺抽取器会主动提醒或补救）
   → 2. 扩写每页完整文案 + 筛选裁剪真实图片 + 复杂关系自动画成可见 SVG 示意图
   → 3. 召唤独立上下文事实核查员（核对数字、分母、主体与限定条件）
-  → 4. 打开图文混排审阅台（自动保存 / 拖曳调页序 / 局部提交修改）
-  → 交付：deliverable/ 制作包（by-page.md + assets/ + production.json）→ 交给 planners-ppt-hell
+  → 4. 打开文字工作台（逐块自动保存 / 块级反馈 / 拖块拖页 / 待核对）
+  → 交付：.planners/by-page.md + by-page.assets.json + fact-audit.json → 交给 planners-ppt-hell
 ```
 
 **明确边界：它不生成 `.pptx` 文件。** 排版、品牌模板和 PowerPoint 导出交给下一棒 [`planners-ppt-hell`](https://github.com/thePlannerIvan/planners-ppt-hell)。
@@ -31,10 +31,10 @@
 
 ## 核心亮点：为什么比普通“写个逐页文案”靠谱
 
-- **不会出现“此处放一张流程图”的空气占位符**：页面需要因果链、路径、分叉或时间轴时，自带 `pele` 引擎直接把关系画成可见的纯 SVG 示意图嵌入同一图文审阅台；图里写的文字也会被事实核查器一并查验。
-- **真实图片资产全检入**：帮忙筛选、裁剪、校验项目自带配图并记清来源，交付时随着逐页稿打包进 `assets/` 和 `production.json`，下个环节不用满文件夹找图。
+- **不会出现“此处放一张流程图”的空气占位符**：页面需要因果链、路径、分叉或时间轴时，自带 `pele` 引擎直接把关系画成可见的纯 SVG 示意图嵌入同一份逐页稿，工作台里就地显示；图里写的文字也会被事实核查器一并查验。
+- **真实图片资产全检入**：帮忙筛选、裁剪、校验项目自带配图并记清来源；正文只写 `![说明](相对路径)`，文件与字节登记进同名 `by-page.assets.json`（`doc-assets/1`），换图不改正文引用。
 - **独立上下文防自夸核查**：完稿给用户看之前，会自动调用 [`planners-fact-check`](https://github.com/thePlannerIvan/planners-fact-check) 拿着原资料对照成品重算指标，堵住改稿时的口径漂移。
-- **所见即改的图文审阅台**：网页打开就是完整每页正文、真图和备注。你可以直接改字、悬停拖曳页序、查看/恢复历史版本，也能单对某一页发起批注让 AI 只重修那几页。
+- **所见即改的块级文字工作台**：底下是一份可以直接用 Typora 打开、能 git diff 的 Markdown。点进任意一段话改字，自动保存；拖块尾手柄移块、拖页标题移页；选中一段提交块级批注，AI 只改你指的那几块，同一块双方改过才进「待核对」。
 
 ---
 
@@ -90,14 +90,18 @@ git clone https://github.com/thePlannerIvan/planners-bypage.git ~/.claude/skills
 <details>
 <summary>开发者说明：环境变量、交付物清单、目录结构与验收命令（普通用户可忽略）</summary>
 
-### 最终交付目录 `deliverable/`
+### 活动稿与交付
 
 ```text
-deliverable/
-├── by-page.md          # 带标题、正文、备注、制作意图与 Sources 定位的逐页正式稿
-├── assets/             # 已筛检裁剪的图片资产与 pele 生成的 SVG 示意图
-└── production.json     # 供 planners-ppt-hell 导入的结构化生产快照
+<Project>/.planners/
+├── storyline.md          # 上游 Proposal 的主线（交接前存在）
+├── by-page.md            # 活动逐页稿：### 页 + 正文/口播/制作/Sources 四段
+├── by-page.assets.json   # 正文图片的派生索引（doc-assets/1，工作台按正文重建）
+├── facts/                # 可选：核查看图与中间材料
+└── fact-audit.json       # 事实核查留档（fact-audit/1.0.0，不进正文）
 ```
+
+`.planners/by-page.md` 是新项目唯一活动稿；`deliverable/` 里的旧制作包仍由旧页级逐页稿生成，把新文档直接接进 PPT Hell 导入器是独立的一张票。
 
 ### 公共模组解析与示意图确定性校验
 
@@ -111,6 +115,16 @@ node scripts/render-diagrams.mjs --manifest .bypage-work/diagram-manifest.json -
 node scripts/validate-diagrams.mjs --manifest .bypage-work/diagram-manifest.json --assets .bypage-work/asset-manifest.json --copy by-page.md --final --check-render
 ```
 
+### By-page 文档与工作台
+
+```bash
+node scripts/import-storyline-doc.mjs --storyline .planners/storyline.md --output .planners/by-page.md
+node scripts/validate-bypage-doc.mjs .planners/by-page.md
+node "<planners-review-core>/scripts/doc-workbench.mjs" .planners/by-page.md --open
+```
+
+校验先跑公共 `validate-doc.mjs`，再加上四段齐全、正文非空、Sources 非空与图片登记；工作台按块编辑，第一次打开补写锚点并重建 `by-page.assets.json`。契约见 [`contracts/by-page.md`](contracts/by-page.md)。
+
 ### 测试与目录结构
 
 ```bash
@@ -118,15 +132,21 @@ npm ci && npm test
 node --test scripts/lib/planners-modules-install.test.mjs
 ```
 
+集成分支的 `planners-review-core` 未发布时，文档相关回归要指向检出目录：
+
+```bash
+PLANNERS_REVIEW_CORE_HOME=<planners-review-core 检出目录> node evals/bypage-doc/run.mjs
+```
+
 ```text
 planners-bypage/
 ├── SKILL.md
 ├── agents/openai.yaml
-├── contracts/           # 页面架构、材料包与资产清单契约
-├── evals/               # 结构 / 审阅 / 图片 / 事实核查 / 交付五类回归测试
+├── contracts/           # by-page 文档、页面架构、材料包与资产清单契约
+├── evals/               # 结构 / 审阅 / 图片 / 事实核查 / 交付 / By-page 文档回归
 ├── references/          # 内容交接、图片生命周期、示意图生命周期与工作台指南
 ├── scripts/             # 校验器、审阅台生成、资产处理与交付装配
-└── templates/           # source-index / page-architecture / asset-manifest / by-page
+└── templates/           # by-page 文档 / 旧页级模板 / source-index / asset-manifest
 ```
 
 </details>

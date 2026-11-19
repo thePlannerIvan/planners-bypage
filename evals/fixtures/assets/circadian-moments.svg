@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="240" viewBox="0 0 640 240" role="img" aria-label="下午三点与睡前两个状态切换时点">
+  <rect width="640" height="240" fill="#f6f4ee"/>
+  <text x="32" y="48" font-family="sans-serif" font-size="18" fill="#1f2a24">同一句主张，两个时点</text>
+  <line x1="72" y1="168" x2="568" y2="168" stroke="#9aa79f" stroke-width="2"/>
+  <circle cx="150" cy="168" r="8" fill="#2f6b4f"/>
+  <circle cx="490" cy="168" r="8" fill="#2f6b4f"/>
+  <text x="108" y="200" font-family="sans-serif" font-size="14" fill="#3c4a42">15:00 · 工位</text>
+  <text x="438" y="200" font-family="sans-serif" font-size="14" fill="#3c4a42">22:30 · 床头</text>
+  <path d="M174 150 Q320 86 466 150" fill="none" stroke="#2f6b4f" stroke-width="2" stroke-dasharray="6 6"/>
+  <text x="262" y="112" font-family="sans-serif" font-size="13" fill="#2f6b4f">状态切回来</text>
+</svg>

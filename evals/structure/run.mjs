@@ -18,8 +18,15 @@ const handoff = readFileSync(join(root, 'references/content-handoff.md'), 'utf8'
 assert(handoff.includes('不要求 Proposal') && handoff.includes('恢复原目录'), 'PPT Hell 资料入口无需 Proposal 且须恢复原项目');
 assert(handoff.includes('同一核查员续检') && handoff.includes('同一 Bypage 正式稿'), '返修必须使用同一活动稿件与核查上下文');
 assert(skill.includes('生成并打开完整图文 Workbench'), '默认完整稿 Workbench');
-assert(jsonOutput(runNode(join(root, 'scripts/validate-page-architecture.mjs'), [join(root, 'templates/page-architecture.json')])).valid, '页面架构模板必须通过');
-assert(jsonOutput(runNode(join(root, 'scripts/validate-bypage.mjs'), [join(root, 'templates/by-page.md')])).valid, 'By-page 模板必须通过');
+for (const needle of ['.planners/storyline.md', '.planners/by-page.md', 'import-storyline-doc.mjs', 'validate-bypage-doc.mjs', 'doc-workbench.mjs']) {
+  assert(skill.includes(needle), `SKILL 必须指向文档形态入口：${needle}`);
+}
+for (const legacy of ['page_title', 'main_message', 'Page Content', 'contract_version']) {
+  assert(!skill.includes(legacy), `SKILL 不再描述页级 JSON 字段：${legacy}`);
+}
+assert(jsonOutput(runNode(join(root, 'scripts/validate-page-architecture.mjs'), [join(root, 'templates/page-architecture.json')])).valid, '旧页面架构模板仍须通过（已有项目兼容）');
+assert(jsonOutput(runNode(join(root, 'scripts/validate-bypage.mjs'), [join(root, 'templates/legacy/bypage-draft.md')])).valid, '旧页级逐页稿模板仍须通过（已有项目兼容）');
+assert(jsonOutput(runNode(join(root, 'scripts/validate-bypage-doc.mjs'), [join(root, 'templates/by-page.md')])).valid, 'By-page 文档模板必须通过');
 
 const temp = mkdtempSync(join(tmpdir(), 'planners-bypage-structure-'));
 mkdirSync(join(temp, 'source'));

@@ -1,51 +1,61 @@
-# 完整稿审阅与交付操作
+# 工作台操作
 
-先读 `planners-review-core/SKILL.md` 及 `references/content-review.md`。公共模组维护自动保存、历史版本和恢复的当前规则；By-page 维护文案映射、核查与制作交接。
+先读 `planners-review-core/contracts/planners-doc-task.md` 与 `contracts/planners-doc.md`。公共模组维护文档结构、块级保存、锁、待核对与反馈任务；By-page 维护写什么、来源与核查。
 
-以下 `<Skill>` 为 By-page 目录，`<D>` 为唯一正式稿，`<F>` 为核查结果，`<V>` 为资产清单，`<R>` 为审阅目录，`<M>` 为共享项目记忆。路径从项目记忆读取。
+以下 `<Skill>` 为 Bypage 目录，`<D>` 为 `.planners/by-page.md`，`<F>` 为 `.planners/fact-audit.json`，`<I>` 为权威 `source-index.json`，`<M>` 为共享项目记忆。路径从项目记忆读取。
 
-## 生成与打开
+## 打开
 
 ```bash
-node "<Skill>/scripts/start-bypage-review.mjs" --copy "<D>" --audit "<F>" --assets "<V>" --review-dir "<R>" --kind final
+node "<planners-review-core>/scripts/doc-workbench.mjs" "<D>" --open
 ```
 
-DSH 有 `review_open` 时加 `--surface-only`，把返回的 surface 路径交给插件打开。`surface_ready` 只证明生成完成，打开以插件回执为准。其他环境由同一命令启动或复用本地宿主。读取回执的 review_context、canonical_path 和 workbench_head。
+工作台按块读出文档，点进任意块就地编辑，自动保存，没有手动保存按钮。第一次打开会补写缺失锚点、按正文重建同名图片清单 `by-page.assets.json`；两者都是正常落盘，不是内容改动。保存后先重跑 `validate-bypage-doc.mjs`，再重新打开工作台。
 
-两种宿主均自动保存，刷新可继续，历史版本支持查看与恢复。当前实现可直接恢复同一基线版本；跨模型重建的旧基线可查看，恢复需模型对照合并。反馈任务与保存分开；浏览器提交反馈后若没有自动唤起模型，提醒用户回对话通知继续处理。
+两种宿主共用同一份文档与同一套命令面：本地浏览器宿主与 DSH 侧栏。侧栏接入不改变文档格式；页面刷新前的未保存编辑留在草稿里。
+
+## 编辑与结构
+
+- 点哪写哪；回车分块，删空合并。块内支持加粗、斜体、行内代码与链接。
+- 拖块尾六点句柄移动块，拖页标题移动整页，也可 `Alt+↑↓`；页号由顺序决定，不写进正文。
+- 历史按次记录，可查看与恢复；恢复作为一次新编辑保存，旧记录不抹。
+- 图块就地显示，点击放大；取不到时标「未能加载」，不编造。
+
+## 块级反馈与派发
+
+- 选中文字自动吸附到完整块；提交的是块身份与提交时的内容指纹，不是整份全文。
+- 块尾批注按钮、选中浮出按钮、顶部整体反馈（整页 / 整份）走同一个任务形状。
+- 派发只表示「请求模型改这些块」，不是保存，也不是批准。
+- 有侧栏插件时即时唤醒模型；没有插件时任务落进 `<D 所在目录>/.doc-workbench/inbox/`，模型用公共命令读取：
+
+```bash
+node "<planners-review-core>/scripts/doc-inbox.mjs" list "<D>"
+node "<planners-review-core>/scripts/doc-inbox.mjs" take "<D>"
+```
 
 ## 处理用户修改和任务
 
-读取 `<R>/workbench/head.json` 与当前 `<D>`。直接编辑的内容已进入正式稿；page_mapping 表示重排后的页码。任务按页绑定：`pages` 是提交时的显示页号，`page_keys` 是本轮页身份，`page_hashes` 是那几页提交时的内容指纹，`page_versions` 是提交时用户编辑版本。处理前对照当前内容，`page_drift` 表示提交时磁盘上已变化的页；按范围完成修改、素材检查与必要续检。批注提交只校验页集合，模型改一页不妨碍用户提交另一页的批注。
+读取当前 `<D>`、`GET /api/tasks`（或收件箱）与 `.doc-workbench/` 下的任务文件。任务按块绑定：`blocks[].anchor` 是块身份，`blocks[].sha256` 是提交那一刻的内容指纹。按这些块处理，不重写全文：
 
-标记完成不要求整份 revision/source_hash 相等（那会锁住整份文件）；`--revision` / `--source-hash` 仍被接受，只作记录。回执里的 `stale_pages` 表示提交后用户又改过那几页，要先重新读这些页再声明完成：
+1. `POST /api/task/claim` 开始处理；这些块被锁，人仍可编辑其他块。
+2. 修改后 `POST /api/patch` 逐块写回。指纹一致才落盘；块已被人改过则进「待核对」，磁盘不动，其余块照常应用。
+3. 没有待核对时 `POST /api/task/complete` 收尾；有 `review` 状态时等人 `POST /api/conflict/decide` 裁决 `mine` / `model` / `discard`。
 
-```bash
-node "<Skill>/scripts/finish-review-task.mjs" --review-dir "<R>" --task-id "<task_id>"
-```
+同一块同时被人和模型改过，只有该块进待核对并保持锁定；不要静默覆盖任何一版。工作台没开时允许直接改 `<D>`，下次打开以磁盘为准；改完先跑校验器。
 
-保存与反馈按页生效：你改 A 页后，用户对 B 页的编辑仍会保存且保留 A 页的改动；同一页被双方改过时该页进入 `deferred_pages`，页面标“待核对”等人选择，不要覆盖用户草稿。任务回执异常时重新读取当前 head 再标一次，不直接清空任务。没有任务就不运行完成命令。核查结果或资产变化后也重建审阅，不能沿用旧依赖绑定。
+## 图片
 
-## 用户上传图片
+- 正文引用决定用哪张图：`![说明](相对路径)`；清单只记录文件当前字节与绑定的块。
+- 换图走 `POST /api/asset/replace`，请求只有块身份、字节与基线；引用路径不变。锁定的图块不可换。
+- 模型直接换文件也可以：下次打开时按磁盘重新登记新指纹。SVG 与位图一样按 `<img>` 加载。
+- 上传素材先登记到来源索引，再做真实视觉检查；清单只证明文件字节，不证明图的内容正确。
 
-先将上传材料登记到原来源索引。按来源分别导入当前已保存的附件：
+## 交付
 
-```bash
-node "<Skill>/scripts/import-review-assets.mjs" --workbench "<R>" --manifest "<V>" --source-id "<来源ID>" --pages "1,3"
-```
+交付前确认：`validate-bypage-doc.mjs` 通过、`validate-fact-audit.mjs --audit "<F>" --copy "<D>" --allow-human-review true` 没有未处理错误、图片清单与正文一致。把当前 `<D>`、`<F>`、`by-page.assets.json`、来源索引与项目记忆的绝对路径记入项目记忆。
 
-`--pages` 是当前页号；整批同源时可省略。若同页附件来自不同来源，分别明确其来源并登记到资产清单，不能用一次页级命令把它们都归为同源。导入会核对已保存状态，使用当前页码映射，拒绝越出上传目录的文件。读返回的 asset_id，实际检查图片后填写 visual_check；导入本身只登记 pending。正文保留真实图片引用，导出依据字节匹配资产。
+当前仓库的 `build-reviewed-copy.mjs` / `review-inbox.mjs` / `import-review-assets.mjs` 仍服务旧页级逐页稿与旧审阅面；新 `.planners/by-page.md` 的 PPT Hell 导入适配是独立的一张票，未完成前不假装已经导出。
 
-## 导出制作快照
+## 旧项目
 
-反馈已处理、核查与资产匹配当前稿后执行：
-
-```bash
-node "<Skill>/scripts/build-reviewed-copy.mjs" --copy "<D>" --audit "<F>" --workbench "<R>" --manifest "<V>" --output "<Project>/deliverable/by-page.md" --assets-dir "<Project>/deliverable/assets" --production-json "<Project>/deliverable/production.json" --memory "<M>"
-```
-
-有示意图时先按 [示意图流程](diagram-lifecycle.md) 检查源与渲染一致。有正在使用的工作结构或材料包时可加 `--architecture` / `--materials`；默认不要求它们。核对 valid、正文/制作说明图片路径和交付资产，在记忆记录 snapshot 和交付路径。交付件是当前稿的快照，继续修改仍回到 `<D>`。
-
-## 仅恢复旧项目
-
-明确使用旧反馈流程的项目才加 `--legacy-review true` 并使用 review-inbox、旧 feedback validator 和 `import-review-assets.mjs --feedback <旧反馈文件>`。当前 Workbench 不生成、不寻找 review-feedback.json 或 review-submissions.json。历史说明与兼容脚本不是新项目流程。
+页级 frontmatter 的 `bypage-draft.md`、`asset-manifest.json` 与 `reviews/bypage/` 只用于已有项目续接：继续用 `start-bypage-review.mjs`、`review-inbox.mjs` 和旧 feedback validator。新项目不生成、不寻找 `review-feedback.json` 或 `review-submissions.json`。
