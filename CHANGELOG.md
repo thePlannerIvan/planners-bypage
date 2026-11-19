@@ -1,3 +1,12 @@
+## 2026-11-19 — By-page 跟随 Storyline 文档：四段契约、文档校验与工作台
+
+- `.planners/by-page.md` 换成 `planners-doc/1` 契约头：页用 `###`，页内四段固定 `#### 正文 / 口播 / 制作 / Sources`；图按 Markdown 引用并登记进同名 `doc-assets/1` 清单。
+- 新增 `import-storyline-doc.mjs`：直接读 `.planners/storyline.md`，按章节+顺序+标题把页、主张与 Sources 1:1 带到 By-page，回执带 `mapping`；不再从 `page-architecture.json` 转换。拆页/合并/删页是作者的显式决定，规则写进契约。
+- 新增 `validate-bypage-doc.mjs`：在公共 `validate-doc.mjs` 之上加四段齐全、正文非空、Sources 非空与图片登记；解析复用公共 `lib/doc-blocks.mjs`，没有第二套解析器。
+- 事实核查留档沿用 `fact-audit/1.0.0`；文档版 By-page 的页码按 `###` 页的交付顺序绑定，改稿后旧核查自动失效。正文不放核查角标。
+- 新增 `evals/bypage-doc/run.mjs`：真实样例（含图、含表、含来源）通过校验；删正文、删 Sources、未登记图片与错文档类型被拒；工作台按块读出并改通；含图含表含来源的页可提交块级反馈并写回。14/14 套件全过。
+- 旧页级 `bypage-draft.md`、`page-architecture.json` 与旧审阅面保留给已有项目；新项目不再从它们起步。把新 By-page 文档接进 PPT Hell 导入器另开票。
+
 ## 2026-11-07 — 逐页稿审阅：按页保存与反馈，拖动换序更好用
 
 - 保存和反馈按页校验：模型改一页时，用户对其他页的编辑照常落盘，并保留模型改动；同一页被双方改过时只有那页标待核对。

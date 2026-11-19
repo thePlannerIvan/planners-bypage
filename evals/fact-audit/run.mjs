@@ -7,7 +7,7 @@
  * 用法：node evals/fact-audit/run.mjs
  */
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -102,5 +102,50 @@ const suspect = (over) => ({ id: 's1', surface: '占比 65%', kind: 'miscalc', c
   console.log('  ✓ 适配器解析到 planners-fact-check');
 }
 
+// ⑧ planners-doc/1 的 by-page：页码来自 `###` 页的顺序，不再有页级 frontmatter。
+{
+  const docDir = join(temp, 'doc-binding');
+  mkdirSync(join(docDir, '.planners'), { recursive: true });
+  cpSync(join(root, 'evals', 'fixtures', 'assets'), join(docDir, '.planners', 'assets'), { recursive: true });
+  const docPath = join(docDir, '.planners', 'by-page.md');
+  writeFileSync(docPath, readFileSync(join(root, 'evals', 'fixtures', 'labbrand-by-page.md')));
+  const docHash = sha(readFileSync(docPath));
+  const auditForDoc = (suspects) => {
+    const p = join(docDir, `doc-audit-${Math.random().toString(36).slice(2)}.json`);
+    writeFileSync(p, JSON.stringify({
+      contract_version: 'fact-audit/1.0.0',
+      artifact: { path: docPath, sha256: docHash },
+      source_index: { path: sourceIndex, index_sha256: null, read_at: null },
+      checker: 'evals/fact-audit/run.mjs',
+      blind_spots: [],
+      suspects,
+    }, null, 2));
+    return p;
+  };
+  const runForDoc = (audit, extra = []) => jsonOutput(spawnSync(process.execPath,
+    [seam, '--audit', audit, '--copy', docPath, ...extra], { encoding: 'utf8' }));
+
+  const third = runForDoc(auditForDoc([suspect({
+    id: 'doc-1', surface: 'BOM 2.8–3.5 元', verdict: 'confirmed',
+    location: { page: 3, line: 40 }, note: '改成与工程报告一致的区间',
+  })]), ['--allow-human-review', 'true']);
+  assert(third.valid && third.requires_human_review, `文档版 by-page 的页码要能定位：${JSON.stringify(third)}`);
+  assert(third.human_review_required[0].page_number === 3,
+    '文档版 by-page 的点名必须来自 ### 页的顺序', JSON.stringify(third.human_review_required));
+
+  const outOfRange = runForDoc(auditForDoc([suspect({
+    id: 'doc-2', surface: '不存在的页', verdict: 'confirmed',
+    location: { page: 9 }, note: '改成真实页',
+  })]), ['--allow-human-review', 'true']);
+  assert(outOfRange.errors.some((error) => error.includes('suspect_page_missing')),
+    '裁定指向不存在的页必须被拒', JSON.stringify(outOfRange.errors));
+
+  writeFileSync(docPath, `${readFileSync(docPath, 'utf8')}\n<!-- 稿后改动 -->\n`);
+  const changed = runForDoc(auditForDoc([]));
+  assert(changed.errors.some((error) => error.includes('绑定的不是这份稿')),
+    '文档版 by-page 改了之后旧核查必须失效', JSON.stringify(changed.errors));
+  console.log('  ✓ planners-doc/1 的 by-page → 页码按 ### 页定位，改稿后旧核查失效');
+}
+
 rmSync(temp, { recursive: true, force: true });
-pass('事实核查接缝：硬错误、点名页码、稿绑定、契约版本');
+pass('事实核查接缝：硬错误、点名页码、稿绑定、契约版本、文档版 by-page 页码');
