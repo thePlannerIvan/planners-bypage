@@ -102,7 +102,7 @@ const suspect = (over) => ({ id: 's1', surface: '占比 65%', kind: 'miscalc', c
   console.log('  ✓ 适配器解析到 planners-fact-check');
 }
 
-// ⑧ planners-doc/1 的 by-page：页码来自 `###` 页的顺序，不再有页级 frontmatter。
+// ⑧ planners-doc/2 的 by-page：页码来自 `##` 页的顺序，不再有页级 frontmatter。
 {
   const docDir = join(temp, 'doc-binding');
   mkdirSync(join(docDir, '.planners'), { recursive: true });
@@ -131,7 +131,7 @@ const suspect = (over) => ({ id: 's1', surface: '占比 65%', kind: 'miscalc', c
   })]), ['--allow-human-review', 'true']);
   assert(third.valid && third.requires_human_review, `文档版 by-page 的页码要能定位：${JSON.stringify(third)}`);
   assert(third.human_review_required[0].page_number === 3,
-    '文档版 by-page 的点名必须来自 ### 页的顺序', JSON.stringify(third.human_review_required));
+    '文档版 by-page 的点名必须来自 ## 页的顺序', JSON.stringify(third.human_review_required));
 
   const outOfRange = runForDoc(auditForDoc([suspect({
     id: 'doc-2', surface: '不存在的页', verdict: 'confirmed',
@@ -144,7 +144,7 @@ const suspect = (over) => ({ id: 's1', surface: '占比 65%', kind: 'miscalc', c
   const changed = runForDoc(auditForDoc([]));
   assert(changed.errors.some((error) => error.includes('绑定的不是这份稿')),
     '文档版 by-page 改了之后旧核查必须失效', JSON.stringify(changed.errors));
-  console.log('  ✓ planners-doc/1 的 by-page → 页码按 ### 页定位，改稿后旧核查失效');
+  console.log('  ✓ planners-doc/2 的 by-page → 页码按 ## 页定位，改稿后旧核查失效');
 }
 
 rmSync(temp, { recursive: true, force: true });

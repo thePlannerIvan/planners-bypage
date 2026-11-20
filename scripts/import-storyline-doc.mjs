@@ -5,12 +5,12 @@
  * 用法：node import-storyline-doc.mjs --storyline <storyline.md> --output <by-page.md>
  *
  * 它不再经过旧 JSON（page-architecture.json），也不猜上游判断：
- *   · 页身份沿用主线的「章节 + 顺序 + 标题」，1:1 落到同序的 `###` 页；
+ *   · 页身份沿用主线的「章节 + 顺序 + 标题」，1:1 落到同序的 `##` 页；
  *   · 每页的主张原样成为 By-page 正文的开头一段，支撑按列表项带过来；
- *   · 页末 Sources 段整体带过来（来源随文档交付，不重新编造）。
+ *   · 页末的出处区（页末连续的引用）整体带过来，仍是逐条引用（来源随文档交付，不重新编造）。
  *
- * 产物只补四段骨架（口播 / 制作留空，作者再写），并先跑公共结构校验，
- * 确认不会产出连 planners-doc/1 都不过的文档。已有逐页稿不覆盖：交接只发生在第一次。
+ * 产物只补三段骨架（`### 正文 / 口播 / 制作`，口播 / 制作留空，作者再写），并先跑公共结构校验，
+ * 确认不会产出连 planners-doc/2 都不过的文档。已有逐页稿不覆盖：交接只发生在第一次。
  *
  * 页数变化（拆页 / 合并）是作者显式的写作决定，不由本脚本猜测：
  *   · 拆页：第一页保留主线标题，后续页用「原标题（续）」或「原标题：子题」；
@@ -70,7 +70,7 @@ const checked = spawnSync(process.execPath, [coreValidator, storylinePath], {
   encoding: 'utf8', env: process.env, maxBuffer: 16 * 1024 * 1024,
 });
 if (checked.status !== 0) {
-  console.error(`Storyline 先要通过 planners-doc/1 校验：\n${checked.stdout || checked.stderr}`);
+  console.error(`Storyline 先要通过 planners-doc/2 校验：\n${checked.stdout || checked.stderr}`);
   process.exit(1);
 }
 const parsed = parseDocument(sourceRaw, { checkImages: false });
@@ -79,7 +79,6 @@ if (parsed.front.doc !== 'storyline') {
   process.exit(1);
 }
 
-const blocksOf = (page, from = 0) => page.blocks.slice(from);
 function claimOf(page) {
   const firstHeading = page.blocks.findIndex((block) => block.type === 'heading');
   const body = firstHeading === -1 ? page.blocks : page.blocks.slice(0, firstHeading);
@@ -91,14 +90,9 @@ function claimOf(page) {
     supports: body.filter((candidate) => candidate.type === 'list').map((candidate) => candidate.raw.trim()),
   };
 }
+// 出处是页末连续的引用（契约第 5 节）：位置就是语义，没有标题块可找。
 function sourcesOf(page) {
-  const headingIndex = page.blocks.findIndex((block) => block.type === 'heading' && (block.text ?? '').trim() === 'Sources');
-  if (headingIndex === -1) return [];
-  const after = blocksOf(page, headingIndex + 1);
-  const next = after.findIndex((block) => block.type === 'heading');
-  return (next === -1 ? after : after.slice(0, next))
-    .map((block) => block.raw.trim())
-    .filter(Boolean);
+  return (page.sources ?? []).map((block) => block.raw.trim()).filter(Boolean);
 }
 
 const warnings = [];
@@ -119,7 +113,7 @@ for (const page of parsed.pages) {
   const sources = sourcesOf(page);
   if (sources.length === 0) {
     warnings.push({ page: page.index, title: page.title, code: 'storyline_sources_missing',
-      message: '主线这一页没有 Sources 段；逐页稿的 Sources 需要补上再交付' });
+      message: '主线这一页没有页末出处；逐页稿的出处需要补上再交付' });
   }
   mapping.push({
     by_page: { chapter: title, number: page.index, title: page.title },
@@ -138,28 +132,28 @@ for (const page of parsed.pages) {
 const frontValue = (value) => (/[:#"']/.test(value) || value.trim() !== value
   ? JSON.stringify(value)
   : value);
+// 文档名只在文档头的 project 里：正文第一条结构就是 `#` 章节，不再有文档标题行。
 const lines = [
   '---',
-  'contract: planners-doc/1',
+  'contract: planners-doc/2',
   'doc: by-page',
   `project: ${frontValue(parsed.front.project)}`,
   '---',
-  '',
-  `# ${parsed.front.project} · 逐页文案`,
   '',
 ];
 let currentChapter = null;
 for (const page of parsed.pages) {
   if (page.chapterTitle !== currentChapter) {
     currentChapter = page.chapterTitle;
-    lines.push(`## ${currentChapter}`, '');
+    lines.push(`# ${currentChapter}`, '');
   }
-  lines.push(`### ${page.title}`, '', '#### 正文', '', page.claim, '');
+  lines.push(`## ${page.title}`, '', '### 正文', '', page.claim, '');
   if (page.supports.length) {
     lines.push(...page.supports, '');
   }
-  lines.push('#### 口播', '', '#### 制作', '', '#### Sources', '');
-  if (page.sources.length) lines.push(...page.sources, '');
+  lines.push('### 口播', '', '### 制作', '');
+  // 出处是页末连续的引用：整段留在页最后，条与条之间空一行。
+  for (const source of page.sources) lines.push(source, '');
 }
 const output = `${lines.join('\n').trimEnd()}\n`;
 

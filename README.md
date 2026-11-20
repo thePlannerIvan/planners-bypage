@@ -95,7 +95,7 @@ git clone https://github.com/thePlannerIvan/planners-bypage.git ~/.claude/skills
 ```text
 <Project>/.planners/
 ├── storyline.md          # 上游 Proposal 的主线（交接前存在）
-├── by-page.md            # 活动逐页稿：### 页 + 正文/口播/制作/Sources 四段
+├── by-page.md            # 活动逐页稿：## 页 + 三段标题块 + 页末出处
 ├── by-page.assets.json   # 正文图片的派生索引（doc-assets/1，工作台按正文重建）
 ├── facts/                # 可选：核查看图与中间材料
 └── fact-audit.json       # 事实核查留档（fact-audit/1.0.0，不进正文）
@@ -123,7 +123,7 @@ node scripts/validate-bypage-doc.mjs .planners/by-page.md
 node "<planners-review-core>/scripts/doc-workbench.mjs" .planners/by-page.md --open
 ```
 
-校验先跑公共 `validate-doc.mjs`，再加上四段齐全、正文非空、Sources 非空与图片登记；工作台按块编辑，第一次打开补写锚点并重建 `by-page.assets.json`。契约见 [`contracts/by-page.md`](contracts/by-page.md)。
+校验先跑公共 `validate-doc.mjs`，再加上三段齐全、正文非空、页末出处非空与图片登记；工作台按块编辑，第一次打开补写锚点并重建 `by-page.assets.json`。契约见 [`contracts/by-page.md`](contracts/by-page.md)。
 
 ### 测试与目录结构
 
@@ -132,11 +132,14 @@ npm ci && npm test
 node --test scripts/lib/planners-modules-install.test.mjs
 ```
 
-集成分支的 `planners-review-core` 未发布时，文档相关回归要指向检出目录：
+文档回归按 `planners-doc/2` 写，必须解析到同样含 /2 与 `scripts/migrate-doc.mjs` 的 `planners-review-core`。库里 vendored 的 `00-system/planners-review-core` 要到 PR 合并 / 正式发布那一步才同步，在那之前把依赖目录交给测试，两种写法等价：
 
 ```bash
+PLANNERS_MODULES_HOME=<含 planners-review-core/ 的目录> npm test
 PLANNERS_REVIEW_CORE_HOME=<planners-review-core 检出目录> node evals/bypage-doc/run.mjs
 ```
+
+`PLANNERS_REVIEW_CORE_HOME` 会被测试接进 `PLANNERS_MODULES_HOME` 解析顺序的最前面；正式环境不需要这两个变量。
 
 ```text
 planners-bypage/

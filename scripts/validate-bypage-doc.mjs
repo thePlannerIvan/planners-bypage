@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 /**
- * Bypage 的 By-page 校验：在 planners-doc/1 之上，只加逐页文案自己的内容规则。
+ * Bypage 的 By-page 校验：在 planners-doc/2 之上，只加逐页文案自己的内容规则。
  *
  * 用法：node validate-bypage-doc.mjs <by-page.md> [--assets <doc-assets 清单>] [--text]
  *
  * 它不另造解析器：
- *   · 结构校验（文档头、页与块的层级、锚点、图片、空页）交给 planners-review-core 的
+ *   · 结构校验（文档头、章节/页/标题块层级、锚点、图片、空页）交给 planners-review-core 的
  *     `scripts/validate-doc.mjs`，回执与退出码原样合并；
  *   · Bypage 规则复用同一个切块实现 `scripts/lib/doc-blocks.mjs` 的 parseDocument，
- *     只读 pages[].blocks，不重新切一遍 Markdown。
+ *     只读 pages[].blocks 与 pages[].sources，不重新切一遍 Markdown。
  *
- * 它加的规则（只评价「每页有没有把四段写全」，不评价文案好不好）：
- *   · 页内四段 `#### 正文 / 口播 / 制作 / Sources` 各一次，按这个顺序；
+ * 它加的规则（只评价「每页有没有把三段写全、出处有没有随文档交付」，不评价文案好不好）：
+ *   · 页内三段 `### 正文 / 口播 / 制作` 各一次，按这个顺序；
  *   · 正文非空；
- *   · Sources 段存在且有内容（来源随文档交付）；
+ *   · 页末有连续的引用作为出处区（来源随文档交付）；出处不是标题块；
  *   · 正文引用到的图必须登记在同名 `doc-assets/1` 清单里（文件存在由公共校验器负责）。
  *
  * 退出码与公共校验器一致：0 合规（可有警告）、1 不合规、2 用法或依赖错误。
@@ -24,8 +24,8 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { moduleScript } from './lib/planners-modules.mjs';
 
-const CONTRACT = 'planners-doc/1';
-const SECTIONS = ['正文', '口播', '制作', 'Sources'];
+const CONTRACT = 'planners-doc/2';
+const SECTIONS = ['正文', '口播', '制作'];
 
 const usage = () => {
   console.error('用法：node validate-bypage-doc.mjs <by-page.md> [--assets <doc-assets 清单>] [--text]');
@@ -95,7 +95,7 @@ let sourceBlocks = 0;
 const blockLabel = (block) => block?.anchor
   ?? `第 ${block?.index ?? '?'} 块（${TYPE_NAMES?.[block?.type] ?? block?.type ?? '块'}）`;
 const pageLabel = (page) => `章节「${page.chapter?.title ?? '未分章'}」第 ${page.index} 页「${page.title}」`;
-const push = (code, message, page, block, extra = {}) => errors.push({
+const entry = (code, message, page, block, extra = {}) => ({
   code,
   message,
   line: block?.startLine ?? page?.line ?? null,
@@ -103,6 +103,8 @@ const push = (code, message, page, block, extra = {}) => errors.push({
   block: blockLabel(block),
   ...extra,
 });
+const push = (...args) => errors.push(entry(...args));
+const warn = (...args) => warnings.push(entry(...args));
 
 const isByPage = !parsed.front.doc || parsed.front.doc === 'by-page';
 if (!isByPage) {
@@ -121,7 +123,10 @@ for (const page of (isByPage ? parsed.pages : [])) {
   for (const heading of headings) {
     const title = (heading.text ?? '').trim();
     if (!SECTIONS.includes(title)) {
-      push('page_section_unknown', `页内小节只认「${SECTIONS.join(' / ')}」；「${title || '空标题'}」不在四段里`, page, heading);
+      const hint = title === 'Sources'
+        ? '出处不再是标题块：来源写成页末连续的引用（`> …`），位置就是语义'
+        : `页内标题块只认「${SECTIONS.join(' / ')}」`;
+      push('page_section_unknown', `${hint}；「${title || '空标题'}」不算其中一段`, page, heading);
       continue;
     }
     if (sectionBlocks.has(title)) {
@@ -135,7 +140,7 @@ for (const page of (isByPage ? parsed.pages : [])) {
   for (const title of missing) {
     errors.push({
       code: 'page_section_missing',
-      message: `每页四段要写全：缺少「${title}」段`,
+      message: `每页三段要写全：缺少「${title}」段`,
       line: page.line,
       page: pageLabel(page),
       block: null,
@@ -144,36 +149,46 @@ for (const page of (isByPage ? parsed.pages : [])) {
   }
   if (missing.length === 0) pagesWithSections += 1;
 
-  // 顺序：四段必须按 正文 → 口播 → 制作 → Sources 排。
+  // 顺序：三段必须按 正文 → 口播 → 制作 排。
   const present = headings
     .map((heading) => ({ heading, title: (heading.text ?? '').trim() }))
     .filter(({ title }) => SECTIONS.includes(title));
   for (let index = 1; index < present.length; index += 1) {
     if (SECTIONS.indexOf(present[index].title) < SECTIONS.indexOf(present[index - 1].title)) {
-      push('page_section_order', `四段顺序是 ${SECTIONS.join(' → ')}；「${present[index].title}」放错了位置`,
+      push('page_section_order', `三段顺序是 ${SECTIONS.join(' → ')}；「${present[index].title}」放错了位置`,
         page, present[index].heading);
       break;
     }
   }
 
-  // 正文：必须真的写了内容；Sources：必须随文档交付。
-  for (const [title, code, label] of [
-    ['正文', 'page_body_empty', '正文'],
-    ['Sources', 'page_sources_empty', 'Sources'],
-  ]) {
-    const heading = sectionBlocks.get(title);
-    if (!heading) continue;
-    const from = page.blocks.indexOf(heading) + 1;
-    const after = page.blocks.slice(from);
+  // 正文：必须真的写了内容。
+  const bodyHeading = sectionBlocks.get('正文');
+  if (bodyHeading) {
+    const after = page.blocks.slice(page.blocks.indexOf(bodyHeading) + 1);
     const nextHeading = after.findIndex((block) => block.type === 'heading');
     const content = nextHeading === -1 ? after : after.slice(0, nextHeading);
     if (!content.some((block) => block.raw.trim() !== '')) {
-      push(code, title === '正文'
-        ? '正文不能为空：写出观众实际看到的完整文案'
-        : 'Sources 不能为空：来源随文档交付，逐条写清定位', page, heading);
+      push('page_body_empty', '正文不能为空：写出观众实际看到的完整文案', page, bodyHeading);
     }
-    if (title === '正文') bodyBlocks += content.length;
-    else sourceBlocks += content.length;
+    bodyBlocks += content.length;
+  }
+
+  // 出处：页末连续的引用（契约第 5 节）。位置就是语义，没有标题块。
+  const pageSources = page.sources ?? [];
+  sourceBlocks += pageSources.length;
+  if (pageSources.length === 0) {
+    const strayQuotes = page.blocks.filter((block) => block.type === 'quote');
+    if (strayQuotes.length > 0) {
+      warn('page_sources_not_at_end',
+        '页里有引用块但不在页末：出处只能是页末连续的引用，页中引用不算出处', page, strayQuotes.at(-1));
+    }
+    errors.push({
+      code: 'page_sources_empty',
+      message: '出处不能为空：来源随文档交付，逐条写成页末连续的引用（`> …`）',
+      line: page.line,
+      page: pageLabel(page),
+      block: null,
+    });
   }
 }
 
@@ -228,7 +243,7 @@ if (textOutput) {
     console.log(`ERROR [${error.code}] ${where ? `${where}：` : ''}${error.message}`);
   }
   console.log(valid
-    ? `\n合规：${checked.chapters} 章 ${checked.pages} 页；${checked.pages_with_sections} 页四段齐全、${checked.source_blocks} 条来源；${allWarnings.length} 个警告`
+    ? `\n合规：${checked.chapters} 章 ${checked.pages} 页；${checked.pages_with_sections} 页三段齐全、${checked.source_blocks} 条页末出处；${allWarnings.length} 个警告`
     : `\n不合规：${allErrors.length} 个错误、${allWarnings.length} 个警告`);
 } else {
   console.log(JSON.stringify({ contract: CONTRACT, valid, errors: allErrors, warnings: allWarnings, checked }, null, 2));

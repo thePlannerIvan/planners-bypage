@@ -1,9 +1,19 @@
-## 2026-11-19 — By-page 跟随 Storyline 文档：四段契约、文档校验与工作台
+## 2026-11-20 — 文档契约升到 planners-doc/2：层级上移一位，出处改成页末引用
 
-- `.planners/by-page.md` 换成 `planners-doc/1` 契约头：页用 `###`，页内四段固定 `#### 正文 / 口播 / 制作 / Sources`；图按 Markdown 引用并登记进同名 `doc-assets/1` 清单。
+- 迁移：`planners-doc/1` → `planners-doc/2`。正文不再有文档标题行（文档名只从文档头 `project` 出）；旧的 `##` 章节变成 `#` 章节、`###` 页变成 `##` 页、页内 `####` 小节变成 `###`–`######` 的普通标题块。存量文档用 `planners-review-core/scripts/migrate-doc.mjs 1 2 <file> --sources-to-quote` 一次性迁过来。
+- 页内三段固定为 `### 正文 / 口播 / 制作`；`Sources` 不再是标题块，依据与来源统一写成页末连续的引用（出处区）。页中引用照常显示、不算出处；写 `### Sources` 会被 `page_section_unknown` 拦下并提示改成页末引用。
+- `validate-bypage-doc.mjs`：三段齐全、正文非空、页末出处非空；出处不在页末给 `page_sources_not_at_end` 警告，`checked.source_blocks` 改为页末出处条数。
+- `import-storyline-doc.mjs`：产 /2 骨架（`#` 章节 / `##` 页 / 三段标题块），主线的页末出处整段带过来仍是引用。
+- 事实核查接缝的页码改按 `##` 页的交付顺序读。
+- 模板与夹具（`templates/by-page.md`、`evals/fixtures/labbrand-by-page.md`、`evals/fixtures/labbrand-storyline.md`）已用迁移器迁到 /2，逐字核对过文字未变、页末出处是引用。
+- 文档相关的 evals 按 /2 写：需要含 `/2` 与 `scripts/migrate-doc.mjs` 的 planners-review-core。库里 vendored 的 `00-system/planners-review-core` 要到 PR 合并 / 正式发布那一步才同步，在那之前用 `PLANNERS_MODULES_HOME`（或 `PLANNERS_REVIEW_CORE_HOME`）指向 /2 的检出目录再跑。
+
+## 2026-11-19 — By-page 跟随 Storyline 文档：文档契约、校验与工作台
+
+- `.planners/by-page.md` 换成工作稿文档：页由结构标题承载，页内固定正文 / 口播 / 制作 / 来源四段；图按 Markdown 引用并登记进同名 `doc-assets/1` 清单。
 - 新增 `import-storyline-doc.mjs`：直接读 `.planners/storyline.md`，按章节+顺序+标题把页、主张与 Sources 1:1 带到 By-page，回执带 `mapping`；不再从 `page-architecture.json` 转换。拆页/合并/删页是作者的显式决定，规则写进契约。
-- 新增 `validate-bypage-doc.mjs`：在公共 `validate-doc.mjs` 之上加四段齐全、正文非空、Sources 非空与图片登记；解析复用公共 `lib/doc-blocks.mjs`，没有第二套解析器。
-- 事实核查留档沿用 `fact-audit/1.0.0`；文档版 By-page 的页码按 `###` 页的交付顺序绑定，改稿后旧核查自动失效。正文不放核查角标。
+- 新增 `validate-bypage-doc.mjs`：在公共 `validate-doc.mjs` 之上加四段齐全、正文非空、来源非空与图片登记；解析复用公共 `lib/doc-blocks.mjs`，没有第二套解析器。
+- 事实核查留档沿用 `fact-audit/1.0.0`；文档版 By-page 的页码按页的交付顺序绑定，改稿后旧核查自动失效。正文不放核查角标。
 - 新增 `evals/bypage-doc/run.mjs`：真实样例（含图、含表、含来源）通过校验；删正文、删 Sources、未登记图片与错文档类型被拒；工作台按块读出并改通；含图含表含来源的页可提交块级反馈并写回。14/14 套件全过。
 - 旧页级 `bypage-draft.md`、`page-architecture.json` 与旧审阅面保留给已有项目；新项目不再从它们起步。把新 By-page 文档接进 PPT Hell 导入器另开票。
 

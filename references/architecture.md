@@ -10,8 +10,8 @@ Planners Bypage owns the realization of research or proposal judgments. It turns
 |---|---|---|---|
 | Handoff intake | This Skill | Upstream memory, source index, `.planners/storyline.md`, document contract | Does not silently change upstream direction |
 | Content realization | This Skill | Page-level content tasks and full argument expansion | Does not reduce a Storyline to a summary |
-| By-page document | This Skill | `.planners/by-page.md` (`planners-doc/1`, four sections per page) | Does not decide PPT layout or template |
-| Sources and fact binding | This Skill | `Sources` section in the document + `.planners/fact-audit.json` | Does not rewrite audit conclusions into the body |
+| By-page document | This Skill | `.planners/by-page.md` (`planners-doc/2`: `#` chapter, `##` page, three `###` body sections, trailing quotes as sources) | Does not decide PPT layout or template |
+| Sources and fact binding | This Skill | Page-end quote blocks (the sources area) + `.planners/fact-audit.json` | Does not rewrite audit conclusions into the body |
 | Images | This Skill + `planners-review-core` | Markdown references + derived `by-page.assets.json` (`doc-assets/1`) | Does not claim file bytes prove visual correctness |
 | Review and handoff | `planners-review-core` owns the workbench; this Skill owns content | `doc-workbench.mjs` block editing, tasks, locks, conflicts | Does not ask Validator to judge rhetorical quality |
 

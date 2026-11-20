@@ -21,8 +21,8 @@ node "<Skill>/scripts/validate-source-index.mjs" "<I>" --strict-files --stamp
 node "<Skill>/scripts/validate-fact-audit.mjs" --audit "<F>" --copy "<D>" --allow-human-review true
 ```
 
-这个薄适配器调用 Fact Check 公共校验器并核对当前稿绑定。文档版的页号按 `###` 页的交付顺序读取；旧逐页稿继续按页级 frontmatter 读取。`--allow-human-review true` 允许呈现已明确接受的事实边界，不绕过未处理错误。读取 `errors` 与 `human_review_required`；`valid` 是机械校验结果，不是语义核查结论。
+这个薄适配器调用 Fact Check 公共校验器并核对当前稿绑定。文档版的页号按 `##` 页的交付顺序读取；旧逐页稿继续按页级 frontmatter 读取。`--allow-human-review true` 允许呈现已明确接受的事实边界，不绕过未处理错误。读取 `errors` 与 `human_review_required`；`valid` 是机械校验结果，不是语义核查结论。
 
 核查员处理 pending；作者修正 confirmed 后续检；no_source 补证、撤除或取得真实具体的边界决定。accepted_with_caveat 必须有用户的具体理由，交付中保留相应限定。作者不能改审计 Hash 替代核查。核查、来源或图片变化后先重跑 `validate-bypage-doc.mjs`，再让用户回到工作台继续。
 
-核查结论在对话里用一段话讲清；不要往正文加角标，也不要把 `fact-audit.json` 的字段抄进 `#### 正文` 或 `#### Sources`。
+核查结论在对话里用一段话讲清；不要往正文加角标，也不要把 `fact-audit.json` 的字段抄进 `正文` 段或页末出处。

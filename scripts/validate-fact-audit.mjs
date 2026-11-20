@@ -9,7 +9,7 @@
  * 用法（与旧版一致，消费者不用改）：
  *   node scripts/validate-fact-audit.mjs --audit <fact-audit.json> --copy <.planners/by-page.md|旧逐页稿> [--allow-human-review true]
  *
- * 文稿是 planners-doc/1 的 by-page 时，页码按 `###` 页的交付顺序读；旧页级 frontmatter 继续走旧解析。
+ * 文稿是 planners-doc/2 的 by-page 时，页码按 `##` 页的交付顺序读；旧页级 frontmatter 继续走旧解析。
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
@@ -55,8 +55,8 @@ if (audit.artifact?.sha256 !== copyHash) {
 
 const suspects = audit.suspects || [];
 const copyRaw = readFileSync(copyPath, 'utf8');
-// 新文档（planners-doc/1）的页号按 `###` 顺序；旧逐页稿（页级 frontmatter）继续用旧解析。
-const isDocument = /^---\r?\n(?:[^\n]*\r?\n)*?contract:\s*planners-doc\/1\s*\r?\n/.test(copyRaw.slice(0, 500));
+// 新文档（planners-doc/2）的页号按 `##` 页的顺序；旧逐页稿（页级 frontmatter）继续用旧解析。
+const isDocument = /^---\r?\n(?:[^\n]*\r?\n)*?contract:\s*planners-doc\/2\s*\r?\n/.test(copyRaw.slice(0, 500));
 let pages;
 if (isDocument) {
   try {
@@ -65,7 +65,7 @@ if (isDocument) {
     // 页号按整份文档的交付顺序；`page.index` 只在章节内计数，不能直接拿来当页码。
     pages = parseDocument(copyRaw, { checkImages: false }).pages.map((page, index) => index + 1);
   } catch (error) {
-    emit({ valid: false, error: `无法读取 planners-doc/1 的页：${error.message}` }, 2);
+    emit({ valid: false, error: `无法读取 planners-doc/2 的页：${error.message}` }, 2);
   }
 } else {
   pages = copyPageNumbers(copyRaw);

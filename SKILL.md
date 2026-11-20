@@ -26,13 +26,13 @@ description: 将已确认的 Storyline 或多源资料展开为完整逐页文�
 
 ## 1. 理解材料与用户意图
 
-读取已有目标、受众、用户决定、项目记忆与来源。Proposal 交接直接读取当前 `.planners/storyline.md`：每页一句「主张：」及其 2～3 个支撑要点，连同 `Sources` 里的来源和「依据与边界」里的限定、缺口。支撑要点是待充分展开的论证，不是几个只需改写的标题。
+读取已有目标、受众、用户决定、项目记忆与来源。Proposal 交接直接读取当前 `.planners/storyline.md`：每页一句「主张：」及其 2～3 个支撑要点，连同页末引用里的来源和「依据与边界」标题块里的限定、缺口。支撑要点是待充分展开的论证，不是几个只需改写的标题。
 
 直接接收资料时，先读正文、数据与必要视觉内容，组织能回答用户问题的页面顺序。只追问会影响结果、且现有材料尚未回答的缺口。PPT Hell 调用时记录原制作目录和续接位置。
 
 接手或恢复项目时读 [内容交接](references/content-handoff.md)。沿用同一 `project-memory.md` 和权威 `source-index.json` 的原路径与来源 ID。新项目工作目录默认 `<Project>/.planners`，里面是 `storyline.md`、`by-page.md` 和同名图片清单 `by-page.assets.json`；核查记录 `fact-audit.json` 也在同一目录。正式文案只维护这一份 `.planners/by-page.md`，工作台编辑原地回写。
 
-旧的页级逐页稿（`bypage-draft.md`，页级 frontmatter）与旧 `page-architecture.json` 只用于已有项目续接，不迁移、不新建；新项目按 `planners-doc/1` 重建。
+旧的页级逐页稿（`bypage-draft.md`，页级 frontmatter）与旧 `page-architecture.json` 只用于已有项目续接，不迁移、不新建；新项目按 `planners-doc/2` 重建。
 
 来源准备按 [核查调用](references/verification.md) 执行：补读相关原文，补齐二进制文档可读层，明确实际盲区。完成于受众、意图、已确认判断与材料能力足以约束写作；未知事项有具体位置与影响。
 
@@ -46,14 +46,14 @@ node scripts/import-storyline-doc.mjs --storyline "<Project>/.planners/storyline
 
 回执里的 `mapping` 逐页列出章节、序号、标题与主张；交接当场核对页序与主张，不要凭记忆重排。已有逐页稿不会被覆盖。页数变化（拆页、合并、删页）是作者的显式决定，规则写在 [By-page 契约](contracts/by-page.md) 第 5 节；拆页与合并要在项目记忆记下对应关系。
 
-按 [文案模板](templates/by-page.md) 写 `.planners/by-page.md`，页用 `###`，页内四段固定为 `#### 正文 / 口播 / 制作 / Sources`：
+按 [文案模板](templates/by-page.md) 写 `.planners/by-page.md`：`#` 是章节、`##` 是页，页内固定三段 `### 正文 / 口播 / 制作`，页末连续的引用就是出处：
 
 - `正文`：观众实际看到的完整文案，包含必要数据、表格、证据和真实图片引用；明确口径、单位与限定。不能为空。
 - `口播`：需要额外讲述、解释或衔接时填写，否则留空。
 - `制作`：有必要时说明内容层级、图文关系或制作意图，否则留空；版式设计交给 PPT Hell。
-- `Sources`：来源 ID 与具体定位，能从本页回到原文。来源随文档交付，不能为空。
+- 页末出处：来源 ID 与具体定位，逐条写成 `> …` 的引用，位置就是语义；能从本页回到原文。来源随文档交付，不能为空。写到页中的引用不算出处，写成 `### Sources` 标题块会被拒。
 
-页身份是「章节 + 顺序 + 标题」，页号不写进正文。正文不放核查角标：核查结论走 `fact-audit.json` 与对话。
+文档名只写在文档头的 `project` 里，正文不再有标题行。页身份是「章节 + 顺序 + 标题」，页号不写进正文。正文不放核查角标：核查结论走 `fact-audit.json` 与对话。
 
 图片采用前读 [图片处理](references/image-lifecycle.md)，保留原件、登记资产并实际看图。正文只写 `![说明](相对路径)`，文件必须存在并登记进同名 `doc-assets/1` 清单；工作台打开时会按正文重建清单。尺寸和 Hash 不能证明图片内容正确；无法判断时保留待确认状态。
 
@@ -65,7 +65,7 @@ node scripts/import-storyline-doc.mjs --storyline "<Project>/.planners/storyline
 node scripts/validate-bypage-doc.mjs "<Project>/.planners/by-page.md"
 ```
 
-它先跑公共 `validate-doc.mjs` 的结构校验，再按 Bypage 规则检查四段齐全、正文非空、Sources 非空与图片登记。完成于所有页面都有可阅读、可继续制作的内容；格式通过不能替代内容判断。
+它先跑公共 `validate-doc.mjs` 的结构校验，再按 Bypage 规则检查三段齐全、正文非空、页末出处非空与图片登记。完成于所有页面都有可阅读、可继续制作的内容；格式通过不能替代内容判断。
 
 ## 3. 后台核查与修正
 
