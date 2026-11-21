@@ -12,10 +12,11 @@
     {
       "asset_id": "asset-example-flow",
       "page_number": 1,
+      "source_id": "src-example",
       "intent": "这一页要说清的因果链（一句话，给审阅的人看）",
       "syntax": "mermaid",
       "source": "flowchart TD\n  A[起点] --> B[所以] --> C[结论]",
-      "output": "../diagrams/asset-example-flow.svg",
+      "output": "assets/asset-example-flow.svg",
       "rendered_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "options": {
         "max_width": 560

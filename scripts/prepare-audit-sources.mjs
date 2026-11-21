@@ -92,6 +92,7 @@ for (const source of index.sources || []) {
   const sourceHash = sha256(sourceBytes);
   source.origin.sha256 = sourceHash;
   source.origin.bytes = sourceBytes.length;
+  if (!source.provenance) source.provenance = 'primary';
   const extension = extname(fullPath).toLowerCase();
   // 2.0.0：读没读到由 coverage.status 表达，不再有 read_mode
   if (!supported.has(extension) || source.coverage?.status === 'unread') continue;
@@ -121,7 +122,7 @@ for (const source of index.sources || []) {
 if (selectedId && !(index.sources || []).some(source => source.source_id === selectedId)) {
   throw new Error(`source-index 中不存在 ${selectedId}`);
 }
-index.contract_version = 'source-index/2.0.0';
+index.contract_version = 'source-index/2.1.0';
 const changed = JSON.stringify(index) !== originalIndex;
 if (changed) {
   delete index.index_sha256;

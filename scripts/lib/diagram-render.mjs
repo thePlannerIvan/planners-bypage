@@ -19,6 +19,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { moduleScript } from './planners-modules.mjs';
 
 export const PELE_VERSION = '1.6.0';
 export const DIAGRAM_CONTRACT = 'diagram-manifest/1.0.0';
@@ -288,4 +289,27 @@ export function renderDiagram(pele, { source, options = {}, theme = {} }) {
     type: result.type ?? null,
     wrapped: sourceText !== source,
   };
+}
+
+/**
+ * Extract 1-based page bodies from either a `planners-doc/2` (`by-page.md`) file
+ * or legacy per-page frontmatter markdown.
+ */
+export async function parseCopyPages(copyPath) {
+  const raw = readFileSync(copyPath, 'utf8').replace(/\r\n/g, '\n');
+  if (/^---\n(?:[^\n]*\n)*?contract:\s*planners-doc\/2\s*\n/.test(raw.slice(0, 500))) {
+    const { parseDocument } = await import(pathToFileURL(
+      moduleScript('planners-review-core', 'scripts/lib/doc-blocks.mjs'),
+    ));
+    const parsed = parseDocument(raw, { checkImages: false });
+    return parsed.pages.map((page, index) => ({
+      page_number: index + 1,
+      body: page.blocks.map(block => block.raw).join('\n'),
+    }));
+  }
+  return [...raw.matchAll(/(?:^|\n)---\n([\s\S]*?)\n---\n([\s\S]*?)(?=\n---\ncontract_version:|$)/g)]
+    .map(match => ({
+      page_number: Number(match[1].match(/^page_number:\s*(\d+)\s*$/m)?.[1]),
+      body: match[2],
+    }));
 }

@@ -1,18 +1,11 @@
-# 多源材料读取
+# 来源阅读与盲区登记
 
-## 覆盖原则
+所有多源项目资料的定位、已读范围、可信度等级（`provenance`）与未读盲区一律使用 `planners-source-index` 的 **`source-index/2.1.0`** 契约，登记于 `<Project>/.planners/source-index.json`。
 
-- Word：读取正文、表格、批注/脚注中影响含义的内容及嵌入图片附近语境。
-- PDF：同时检查文本层和页面视觉；扫描件使用 OCR 辅助理解，但保留页码来源。
-- PPT：区分内容页、模板装饰、讲者备注和嵌入图表；不能只读提取文本。
-- Spreadsheet：先看 Sheet、字段、范围与公式，再读取页面实际需要的数据切片；关键数字保留单元格定位。
-- Markdown/文本：解析本地图片链接并保留相对路径语境。
-- 图片：读取尺寸、方向、文字、主体、来源上下文和是否重复。
+## 两阶段接力原则
 
-## Source Index 判断
-
-`full`表示已覆盖全部决策相关内容，不等于把整份材料复制进上下文；`sampled`只适合大型明细数据，并必须说明字段、Sheet、范围和影响。重复、派生和 unread 都要明确记录。
-
-PDF、Word、PPT 的 `audit_companion`只是同一来源的机器检索层，不是第二个事实来源。预处理默认放在活动索引所在目录的 `audit-sources/`，沿用索引目录相对定位，绑定原文件 Hash，并尽可能保留 `PAGE`或`SLIDE`标记；人工引用仍写原文件页码或幻灯片号。
-
-当格式工具失败时，记录具体文件、失败原因和影响，并尝试对应文件能力；不得用空摘要代替读取。
+1. **承接上游 Proposal 台账**：若 `<Project>/.planners/source-index.json` 已由 `planners-proposal` 建立，直接沿用并补全进入完整文案所需的细节锚点与新补充材料；不覆写已有 `blind_spots` 或真实缺失记录。
+2. **补全深层审计副本（`audit_companion`）**：
+   - 运行 `node "<B>/scripts/prepare-audit-sources.mjs" --source-index "<Project>/.planners/source-index.json"`，为重点 PDF / Office 文档抽取按页或版面保留的纯文本副本（`.planners/audit-sources/<source_id>.txt`），以便 `planners-fact-check` 逐页回查；
+   - 确保每条有效来源都标注了 `provenance`（`primary` / `secondary` / `derived` / `unverified`）与诚实的 `coverage`（`full` / `partial` / `unread`）。
+3. **格式校验**：每次修改或抽取后运行 `node "<B>/scripts/validate-source-index.mjs" "<Project>/.planners/source-index.json"`。

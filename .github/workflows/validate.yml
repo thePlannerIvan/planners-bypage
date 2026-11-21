@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: thePlannerIvan/Planners-Proposal-System
-          path: 02-skills-library/02-content-assembly/planners-proposal-system
+          path: 02-skills-library/02-content-assembly/planners-proposal
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

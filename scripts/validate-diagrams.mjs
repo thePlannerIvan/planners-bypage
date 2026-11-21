@@ -10,13 +10,13 @@
  *   5. `--final` 时视觉检查必须真的做过（看过再交付）。
  *
  * 用法：
- *   node scripts/validate-diagrams.mjs --manifest <.bypage-work/diagram-manifest.json> \
- *        [--assets <.bypage-work/asset-manifest.json>] [--copy <by-page.md>] [--final] [--check-render]
+ *   node scripts/validate-diagrams.mjs --manifest <.planners/diagram-manifest.json> \
+ *        [--assets <.planners/by-page.assets.json>] [--copy <.planners/by-page.md>] [--final] [--check-render]
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
-import { DIAGRAM_CONTRACT, PELE_VERSION, extractTexts, loadPele, renderDiagram } from './lib/diagram-render.mjs';
+import { DIAGRAM_CONTRACT, PELE_VERSION, extractTexts, loadPele, parseCopyPages, renderDiagram } from './lib/diagram-render.mjs';
 
 const args = {};
 const argv = process.argv.slice(2);
@@ -34,7 +34,7 @@ const finish = (valid, errors, extra = {}) => {
 };
 const manifestPath = args['--manifest'] ? resolve(args['--manifest']) : null;
 if (!manifestPath) {
-  process.stdout.write(JSON.stringify({ contract: DIAGRAM_CONTRACT, valid: false, errors: [{ code: 'arg_error', message: '用法：validate-diagrams.mjs --manifest <diagram-manifest.json> [--assets <asset-manifest.json>] [--copy <by-page.md>] [--final] [--check-render]' }] }) + '\n');
+  process.stdout.write(JSON.stringify({ contract: DIAGRAM_CONTRACT, valid: false, errors: [{ code: 'arg_error', message: '用法：validate-diagrams.mjs --manifest <diagram-manifest.json> [--assets <by-page.assets.json>] [--copy <by-page.md>] [--final] [--check-render]' }] }) + '\n');
   process.exit(2);
 }
 if (!existsSync(manifestPath)) {
@@ -60,7 +60,7 @@ if (doc.theme && !['paper', 'ink'].includes(doc.theme.preset)) errors.push({ cod
 const diagrams = Array.isArray(doc.diagrams) ? doc.diagrams : null;
 if (!diagrams) errors.push({ code: 'diagrams_type', message: 'diagrams 必须是数组' });
 
-// 资产清单
+// 资产清单（可选，推荐 doc-assets/1）
 let assets = null;
 let assetRootAbs = null;
 if (args['--assets']) {
@@ -68,7 +68,10 @@ if (args['--assets']) {
   if (!existsSync(assetsPath)) errors.push({ code: 'asset_manifest_missing', message: '找不到资产清单：' + assetsPath });
   else {
     assets = JSON.parse(readFileSync(assetsPath, 'utf8'));
-    assetRootAbs = resolve(dirname(assetsPath), assets.asset_root || '.');
+    if (assets.contract !== 'doc-assets/1' || !Array.isArray(assets.assets)) {
+      errors.push({ code: 'asset_manifest_shape', message: '资产清单必须为 doc-assets/1（含 assets 数组）' });
+    }
+    assetRootAbs = dirname(assetsPath);
   }
 }
 
@@ -80,9 +83,7 @@ if (args['--copy']) {
   if (!existsSync(copyPath)) errors.push({ code: 'copy_missing', message: '找不到正文：' + copyPath });
   else {
     copyDir = dirname(copyPath);
-    copyPages = [...readFileSync(copyPath, 'utf8').replace(/\r\n/g, '\n')
-      .matchAll(/(?:^|\n)---\n([\s\S]*?)\n---\n([\s\S]*?)(?=\n---\ncontract_version:|$)/g)]
-      .map(match => ({ page_number: Number(match[1].match(/^page_number:\s*(\d+)\s*$/m)?.[1]), body: match[2] }));
+    copyPages = await parseCopyPages(copyPath);
   }
 }
 
@@ -136,20 +137,18 @@ for (const [index, diagram] of (diagrams || []).entries()) {
   if (finalMode && visual.status !== 'passed') errors.push({ code: 'visual_check_required', asset_id: label, message: '进终稿前必须真的看过这张图（visual_check.status=passed）' });
   if (visual.status === 'passed' && (!String(visual.method || '').trim() || !String(visual.notes || '').trim())) errors.push({ code: 'visual_check_evidence', asset_id: label, message: '视觉检查通过时必须记录 method 与 notes' });
 
-  // 资产清单对齐
-  if (assets) {
-    const asset = (assets.assets || []).find(item => item.asset_id === diagram.asset_id);
-    if (!asset) errors.push({ code: 'asset_missing', asset_id: label, message: '资产清单里没有这条图（先跑 render-diagrams.mjs 同步）' });
-    else {
-      const assetPathAbs = resolve(assetRootAbs, asset.path || '');
-      if (assetPathAbs !== outputAbs) errors.push({ code: 'asset_path_mismatch', asset_id: label, message: `资产清单指向 ${asset.path}，与图的 output 不是同一个文件` });
-      if (asset.source_sha256 !== diagram.rendered_sha256) errors.push({ code: 'asset_hash_mismatch', asset_id: label, message: '资产清单的 Hash 与图的 Hash 不一致' });
-      if (asset.kind !== 'diagram') errors.push({ code: 'asset_kind', asset_id: label, message: '资产清单 kind 应为 diagram' });
-      if (!String(asset.source_id || '').trim()) errors.push({ code: 'asset_source_id', asset_id: label, message: '图必须登记 source_id，否则图内事实不可核查' });
-      // 进终审的图必须是定稿状态：正文引用了、却没被采用，交付包里就会缺这一条
-      if (finalMode && !['selected', 'backup'].includes(asset.status)) {
-        errors.push({ code: 'asset_status_final', asset_id: label, message: `正文引用了这张图，但资产状态是 ${asset.status}；终审前必须定为 selected（候选态会被交付流程跳过）` });
-      }
+  // 事实出处校验（无论是否附带 doc-assets/1 都必须有 source_id）
+  if (!String(diagram.source_id || '').trim()) {
+    errors.push({ code: 'asset_source_id', asset_id: label, message: '图必须登记 source_id，否则图内事实不可核查' });
+  }
+
+  // doc-assets/1 资产清单对齐
+  if (assets && Array.isArray(assets.assets)) {
+    const relFromAssetRoot = relative(assetRootAbs, outputAbs).split(sep).join('/');
+    const asset = assets.assets.find(item => item.path === relFromAssetRoot);
+    if (!asset) errors.push({ code: 'asset_missing', asset_id: label, message: `资产清单里没有 ${relFromAssetRoot}（先跑 render-diagrams.mjs 或 doc-assets.mjs 同步）` });
+    else if (asset.sha256 && asset.sha256 !== diagram.rendered_sha256) {
+      errors.push({ code: 'asset_hash_mismatch', asset_id: label, message: '资产清单的 Hash 与图的 Hash 不一致' });
     }
   }
 

@@ -1,5 +1,5 @@
 {
-  "contract_version": "source-index/2.0.0",
+  "contract_version": "source-index/2.1.0",
   "source_root": "../source",
   "index_sha256": null,
   "sources": [
@@ -11,6 +11,7 @@
         "bytes": 0
       },
       "kind": "document",
+      "provenance": "primary",
       "role": "说明这份材料在项目中的作用",
       "audit_layer": {
         "mode": "source_file",

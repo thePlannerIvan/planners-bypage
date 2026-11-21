@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { assert, jsonOutput, pass, runNode } from '../lib/assert.mjs';
@@ -10,74 +9,49 @@ const root = resolve(import.meta.dirname, '../..');
 const skill = readFileSync(join(root, 'SKILL.md'), 'utf8');
 assert(skill.includes('name: planners-bypage'), 'frontmatter 必须使用 planners-bypage');
 assert(skill.includes('$planners-ppt-hell'), '必须明确交给下游 PPT Skill');
-assert(skill.includes('planners-method-wiki') && skill.includes('slide-copy'), '具体方法由独立 Skill 提供');
-assert(existsSync(moduleScript('planners-method-wiki', 'scripts/query-wiki.mjs')), 'Wiki 的实际查询入口可解析');
+assert(skill.includes('planners-method-wiki') && skill.includes('slide-copy'), '方法与文案表达由独立 Skill 提供');
+assert(existsSync(moduleScript('planners-method-wiki', 'scripts/query-wiki.mjs')), 'Wiki 查询入口可解析');
+assert(existsSync(moduleScript('planners-method-wiki', 'scripts/lint-wiki.mjs')), 'Wiki 校验入口可解析');
+assert(skill.includes('.planners/storyline.md') && skill.includes('.planners/by-page.md'), '工作区统一收敛到 .planners/');
 assert(skill.includes('沿用同一') && skill.includes('新项目工作目录'), '两入口必须区分复用与新建');
 assert(skill.includes('按该 Skill 的规则复用') && !skill.includes('子代理复用（调用方）'), '核查代理规则由 Fact Check 拥有');
+
 const handoff = readFileSync(join(root, 'references/content-handoff.md'), 'utf8');
 assert(handoff.includes('不要求 Proposal') && handoff.includes('恢复原目录'), 'PPT Hell 资料入口无需 Proposal 且须恢复原项目');
 assert(handoff.includes('同一核查员续检') && handoff.includes('同一 Bypage 正式稿'), '返修必须使用同一活动稿件与核查上下文');
-assert(skill.includes('生成并打开完整图文 Workbench'), '默认完整稿 Workbench');
-for (const needle of ['.planners/storyline.md', '.planners/by-page.md', 'import-storyline-doc.mjs', 'validate-bypage-doc.mjs', 'doc-workbench.mjs']) {
+
+for (const needle of ['.planners/storyline.md', '.planners/by-page.md', 'import-storyline-doc.mjs', 'validate-bypage-doc.mjs', 'doc-workbench.mjs', 'doc-surface.mjs']) {
   assert(skill.includes(needle), `SKILL 必须指向文档形态入口：${needle}`);
 }
-for (const legacy of ['page_title', 'main_message', 'Page Content', 'contract_version']) {
-  assert(!skill.includes(legacy), `SKILL 不再描述页级 JSON 字段：${legacy}`);
+for (const legacy of ['page_title', 'main_message', 'Page Content', 'asset-manifest', 'page-architecture']) {
+  assert(!skill.includes(legacy), `SKILL 不再描述旧 JSON / 资产清单字段：${legacy}`);
 }
-assert(jsonOutput(runNode(join(root, 'scripts/validate-page-architecture.mjs'), [join(root, 'templates/page-architecture.json')])).valid, '旧页面架构模板仍须通过（已有项目兼容）');
-assert(jsonOutput(runNode(join(root, 'scripts/validate-bypage.mjs'), [join(root, 'templates/legacy/bypage-draft.md')])).valid, '旧页级逐页稿模板仍须通过（已有项目兼容）');
 assert(jsonOutput(runNode(join(root, 'scripts/validate-bypage-doc.mjs'), [join(root, 'templates/by-page.md')])).valid, 'By-page 文档模板必须通过');
 
 const temp = mkdtempSync(join(tmpdir(), 'planners-bypage-structure-'));
-mkdirSync(join(temp, 'source'));
-const research = Buffer.from('# Research\n');
-writeFileSync(join(temp, 'source/research.md'), research);
-const sourceIndex = join(temp, 'source-index.json');
-writeFileSync(sourceIndex, JSON.stringify({
-  contract_version: 'source-index/2.0.0', source_root: '.',
-  sources: [{
-    source_id: 'src-research',
-    origin: { path: 'source/research.md', sha256: createHash('sha256').update(research).digest('hex'), bytes: research.length },
-    kind: 'document', role: '主要内容',
-    audit_layer: { mode: 'source_file', path: null, sha256: null, derived_from_sha256: null, snapshot_sha256: null, method: null, anchor_marks: null },
-    coverage: { status: 'full', scope: null, reason: null, impact_if_incomplete: null, counts: null },
-    anchors: [{ kind: 'section', value: '全文' }], conflicts: [], notes: '',
-  }],
-}, null, 2));
-assert(jsonOutput(runNode(join(root, 'scripts/validate-source-index.mjs'), [sourceIndex])).valid, 'Source Index 必须验证真实文件');
-const image = Buffer.from('asset-bytes');
-writeFileSync(join(temp, 'asset.png'), image);
-const manifest = join(temp, 'asset-manifest.json');
-writeFileSync(manifest, JSON.stringify({
-  contract_version: 'asset-manifest/1.1.0', asset_root: '.',
-  assets: [{ asset_id: 'asset-chart', path: 'asset.png', preview_path: null, processed_path: null, source_sha256: createHash('sha256').update(image).digest('hex'), processed_sha256: null, kind: 'image', semantic_class: 'content_evidence', source_id: 'src-research', source_context: '研究图表', status: 'selected', processing_level: 'none', processing_notes: '', visual_check: { status: 'passed', method: 'fixture-inspection', notes: '测试夹具图片内容已确认。' }, width: null, height: null, issues: [] }],
-}, null, 2));
-assert(jsonOutput(runNode(join(root, 'scripts/validate-asset-manifest.mjs'), [manifest])).valid, 'Asset Manifest 必须复算文件 Hash');
-const pendingManifest = join(temp, 'pending-asset-manifest.json');
-const pendingDoc = JSON.parse(readFileSync(manifest, 'utf8'));
-pendingDoc.assets[0].visual_check = { status: 'pending', method: '', notes: '' };
-writeFileSync(pendingManifest, JSON.stringify(pendingDoc, null, 2));
-const pendingResult = spawnSync(process.execPath, [join(root, 'scripts/validate-asset-manifest.mjs'), pendingManifest, '--final'], { encoding: 'utf8' });
-assert(pendingResult.status !== 0 && JSON.parse(pendingResult.stdout).errors.some(error => error.code === 'visual_check_required'), '终审必须阻止尚未视觉确认的采用图片');
-writeFileSync(join(temp, 'processed.png'), Buffer.from('processed-bytes'));
-const badProcessedManifest = join(temp, 'bad-processed-asset-manifest.json');
-const badProcessedDoc = JSON.parse(readFileSync(manifest, 'utf8'));
-badProcessedDoc.assets[0].processed_path = 'processed.png';
-badProcessedDoc.assets[0].processed_sha256 = '0'.repeat(64);
-badProcessedDoc.assets[0].processing_level = 'conservative';
-writeFileSync(badProcessedManifest, JSON.stringify(badProcessedDoc, null, 2));
-const badProcessedResult = spawnSync(process.execPath, [join(root, 'scripts/validate-asset-manifest.mjs'), badProcessedManifest], { encoding: 'utf8' });
-assert(badProcessedResult.status !== 0 && JSON.parse(badProcessedResult.stdout).errors.some(error => error.code === 'processed_hash_mismatch'), '处理图 Hash 必须独立复算');
-const architecturePath = join(temp, 'page-architecture.json');
-const architecture = JSON.parse(readFileSync(join(root, 'templates/page-architecture.json'), 'utf8'));
-architecture.pages[0].recommended_assets = [{ asset_id: 'asset-chart', role: '证据图', reason: '直接支持页面信息' }];
-writeFileSync(architecturePath, JSON.stringify(architecture, null, 2));
-assert(jsonOutput(runNode(join(root, 'scripts/validate-page-architecture.mjs'), [architecturePath, '--assets', manifest])).valid, '页面架构必须检查 Asset ID');
-const materials = join(temp, 'page-material-packs.json');
-writeFileSync(materials, JSON.stringify({
-  contract_version: 'page-material-packs/1.0.0',
-  architecture_sha256: createHash('sha256').update(readFileSync(architecturePath)).digest('hex'),
-  packs: [{ page_number: 1, page_job: '说明研究结论', materials: [{ source_id: 'src-research', locator: '全文', excerpt: 'Research', relationship: 'supports', used_in: '正文' }], asset_ids: ['asset-chart'], content_development: ['图文结合'], gaps: [] }],
-}, null, 2));
-assert(jsonOutput(runNode(join(root, 'scripts/validate-page-materials.mjs'), ['--materials', materials, '--architecture', architecturePath, '--sources', sourceIndex, '--assets', manifest])).valid, '材料包必须绑定当前架构并验证来源与图片');
-pass('结构、核心 Contract 与边界');
+try {
+  mkdirSync(join(temp, 'source'));
+  const research = Buffer.from('# Research\n');
+  writeFileSync(join(temp, 'source/research.md'), research);
+  const sourceIndex = join(temp, 'source-index.json');
+  writeFileSync(sourceIndex, JSON.stringify({
+    contract_version: 'source-index/2.1.0',
+    source_root: '.',
+    sources: [{
+      source_id: 'src-research',
+      origin: { path: 'source/research.md', sha256: createHash('sha256').update(research).digest('hex'), bytes: research.length },
+      kind: 'document',
+      provenance: 'primary',
+      role: '主要内容',
+      audit_layer: { mode: 'source_file', path: null, sha256: null, derived_from_sha256: null, snapshot_sha256: null, method: null, anchor_marks: null },
+      coverage: { status: 'full', scope: null, reason: null, impact_if_incomplete: null, counts: null },
+      anchors: [{ kind: 'section', value: '全文' }],
+      conflicts: [],
+      notes: '',
+    }],
+  }, null, 2));
+  assert(jsonOutput(runNode(join(root, 'scripts/validate-source-index.mjs'), [sourceIndex])).valid, 'Source Index 2.1.0 必须验证真实文件');
+} finally {
+  rmSync(temp, { recursive: true, force: true });
+}
+pass('结构、source-index/2.1.0 与 planners-doc/2 契约对齐');

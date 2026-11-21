@@ -1,4 +1,4 @@
 interface:
   display_name: "Planners Bypage"
-  short_description: "把多源文档整理成可审阅、可追溯的逐页 PPT 内容包"
-  default_prompt: "使用 $planners-bypage 接收已有 Storyline 或整理这些资料，展开完整逐页内容，核查并审阅后交付 by-page.md 与图片资产。"
+  short_description: "把 Storyline 或多源资料展开为可编程 PPT 逐页正文、核查并直接交付 PPT Hell"
+  default_prompt: "使用 $planners-bypage 接收 storyline.md 或项目资料，用 slide-copy 与 Method Wiki 写好适合编程 PPT 的逐页正文，在后台补齐深抽检并完成独立 fact-check 审阅，最终交出 .planners/by-page.md 给 planners-ppt-hell。"

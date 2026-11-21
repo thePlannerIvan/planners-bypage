@@ -17,7 +17,6 @@ import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { moduleScript } from './lib/planners-modules.mjs';
-import { copyPageNumbers } from './lib/copy-pages.mjs';
 
 function argsOf(argv) {
   const out = {};
@@ -68,7 +67,7 @@ if (isDocument) {
     emit({ valid: false, error: `无法读取 planners-doc/2 的页：${error.message}` }, 2);
   }
 } else {
-  pages = copyPageNumbers(copyRaw);
+  pages = [...String(copyRaw).replace(/\r\n/g, '\n').matchAll(/^page_number:\s*(\d+)\s*$/gm)].map(m => Number(m[1]));
 }
 for (const suspect of suspects) {
   if (['confirmed', 'accepted_with_caveat', 'no_source'].includes(suspect.verdict)

@@ -1,53 +1,26 @@
-# Proposal / Bypage / PPT Hell 内容交接
+# 交接、独立入口与返修
 
-本文件定义三阶段的文件归属与续接。调用方读取这份契约；来源字段以 `planners-source-index` 为准，核查规则及代理复用以 `planners-fact-check` 为准，文档与工作台以 `planners-review-core` 为准。
+## 上游入口：承接 Storyline vs 直接来料
 
-## 项目内的一份活动文件
+1. **从 `planners-proposal` 交接**：直接沿用同一 `<Project>/.planners/` 目录里的 `storyline.md`、`project-memory.md` 与 `source-index.json`：
+   ```bash
+   node "<B>/scripts/import-storyline-doc.mjs" --storyline "<Project>/.planners/storyline.md" --output "<Project>/.planners/by-page.md"
+   ```
+   保留已确认判断与分页关系；拆页、并页在 `project-memory.md` 中留痕。
+2. **直接从资料进入（不要求 Proposal）**：当从 `$planners-ppt-hell` 或用户直接带资料触发时，在原项目目录（若已存在则**恢复原目录**）创建 `<Project>/.planners/`，建账 `source-index.json`（`source-index/2.1.0`）并写 `by-page.md`，无需先补 Proposal 交接物。
 
-项目记忆记录项目目录、调用方/续接位置，以及下表的绝对路径。已有文件继续沿用；新项目使用默认位置。每次交接传路径，不传一个脱离原件的摘要包。
+## 下游交接：直接交付 `$planners-ppt-hell`
 
-| 内容 | 唯一维护者与活动文件 | 下游如何使用 |
-|---|---|---|
-| 项目目标、用户决定、活动路径 | 各阶段追加到同一 `project-memory.md` | 读取并更新已有文件；默认在最早进入的阶段目录建立 |
-| 已采用方法与应用边界 | 同一 `project-memory.md` 中的方法采用记录，按 `planners-method-wiki` 定义 | 沿用库路径、采用时版本、方法 ID / 全文定位、用途与未满足条件；已有问题直接承接，新问题再检索 |
-| 来源 ID、原文件、读取层、覆盖、盲区 | 所有阶段维护同一 `source-index.json` | 保持位置和 ID，只增补实际新增或变化来源 |
-| 当前判断与证明需要 | Proposal `.planners/storyline.md`（每页一句主张加支撑） | Bypage 保留原件，直接展开为完整文案；实质改判断先与用户讨论 |
-| 完整逐页内容 | Bypage `.planners/by-page.md` | 校验、工作台、核查与返修都读写此稿；交付打包由它生成 |
-| 图片与资产 | 正文里的 `![说明](相对路径)` + 同名 `by-page.assets.json`（`doc-assets/1`） | 按正文重建清单；换文件只换字节，引用路径不变 |
-| 事实核查与当前稿状态 | 指向 `.planners/by-page.md` 的 `fact-audit.json` | 检查绑定及裁定；上游结构状态不是完整稿事实核查 |
-| 制作基线 | 当前 `.planners/by-page.md` + 交付资产快照 | 制作导入器按真实路径与 Hash 读取；现状见文末交接说明 |
+不再经过 `page-architecture.json` 或旧生产导出中间包。交付时保证 `<Project>/.planners/` 内：
+- `by-page.md`：通过 `validate-bypage-doc.mjs`（每页含 `正文 / 口播 / 制作` 三段、末段有 `>` 出处、无角标占位符）。
+- `by-page.assets.json`（`doc-assets/1`）及引用的本地 `assets/*` 图片/示意图均实际存在、哈希一致。
+- `fact-audit.json`：与当前 `by-page.md` 的 SHA-256 绑定（`validate-fact-audit.mjs` 通过，无 `confirmed` 或 `no_source` 阻断项）。
 
-默认共享记忆与索引放在 `.proposal-work`（Proposal 首入）或 `.bypage-work`（资料首入）；文档本身放在项目 `.planners/`。进入下一阶段不移动、不重建。`source_root` 相对索引目录，`audit_layer.path` 也相对索引目录；PPT 的本地 `source.md` 与重新编号的 `asset_001` 只是制作副本，不替代原来源索引或原资产 ID。
+`$planners-ppt-hell` 通过 `init_svg_project.py --source "<Project>/.planners/by-page.md"` 直接解析分章、页序、三段内容与 `source_assets`。
 
-方法库不随阶段复制，方法采用记录也不另建一份交接摘要。有 Proposal 时复用其库与应用记录；资料直接进入 Bypage 时，在原项目记忆里建立采用记录并使用 Wiki Skill 的默认选择规则。PPT Hell 承接实际论证和表达需要，不重做策略判断。方法库版本变化时核对已采用对象的变化；方法中的历史案例事实不自动成为项目证据。
+## PPT 返修回到 Bypage
 
-## 两次交接
-
-**Proposal → Bypage：**交项目目录、记忆、索引、`.planners/storyline.md` 与工作台地址的绝对路径。Bypage 校验主线结构（`planners-review-core/scripts/validate-doc.mjs`），用文档交接把页、主张与来源接过来：
-
-```bash
-node scripts/import-storyline-doc.mjs --storyline "<Project>/.planners/storyline.md" --output "<Project>/.planners/by-page.md"
-```
-
-回执 `mapping` 按页给出章节、序号、标题与主张；页身份是「章节 + 顺序 + 标题」，页号不写进正文。1:1 是默认；拆页、合并、删页是作者的显式决定，规则见 `contracts/by-page.md` 第 5 节，并在项目记忆记下变化。不重复做 Proposal 已完成的来源登记与主线判断。旧 `page-architecture.json` 只用于已有项目，不再是交接入口。
-
-**Bypage → PPT Hell：**交当前 `.planners/by-page.md`、`fact-audit.json`、`by-page.assets.json`、来源索引与项目记忆的绝对路径，以及工作台当前状态。当前仓库的 `build-reviewed-copy.mjs` 仍读取旧页级逐页稿；把新文档直接接进 PPT Hell 导入器是独立的一张票。在这张票完成前，交接要说明实际可用的制作入口，不能把旧导出当作新文档已经交付。
-
-PPT Hell 先入但资料未整理时，将现有资料、用户决定、项目目录和续接位置交给 Bypage，不要求 Proposal 文件；完成后回到原制作流程。已有制作项目恢复原目录；已有完整稿、有效核查和资产快照时直接制作。`page_content.json` 单独存在只说明有制作底稿，不自动证明内容已核查。
-
-`page_key` 或 `page_id` 已存在时保留其身份。旧稿只有页号时，程序分配绑定原稿 Hash 的基线身份；新稿或重编号不会按标题、页序或相似文字猜测旧页对应。需要跨基线稳定身份时，在上游明确提供页面 ID。工作台页序变化不改变已登记页面身份；页身份由「章节 + 顺序 + 标题」决定，重排后按新顺序重新数。
-
-## 来源与核查的时机
-
-| 时机 | 来源索引 | 事实核查 |
-|---|---|---|
-| Proposal 理解和共创 | 随实际读取建立/更新，交接前验证 | 不把结构编辑当成成品核查；如单独需要查关键事实，可提前查但只覆盖该成品 |
-| Bypage 展开和取材 | 沿用索引，仅补新增资料、补读、盲区变化 | 完整逐页稿完成后、首次图文审阅前，独立核查当前成品 |
-| Bypage 用户返修 | 新来源或证据变化才更新登记 | 同一核查员续检受影响内容；文字或页序改变后更新绑定，重新生成当前快照 |
-| PPT 制作与视觉修订 | 新增证据图/外部材料时登记；纯装饰资产不冒充事实来源 | 内容变化按编辑后的画面/快照另行核查；原稿核查绑定继续只代表基线 |
-
-工作台修改由块级版本与任务记录维护。上游正式稿、审计与当前稿快照是制作基线；编辑后的画面以版本、操作和差异记录自己的 provenance，不能借基线核查宣称新文案已核查。数字、主体、时间、限定或证据发生变化时，向独立核查员交编辑后的画面/输出快照及新增来源，记录该版本的覆盖范围与疑点。确实需要更新正式稿时，明确回到同一 Bypage 正式稿编辑、核查、审阅并重出新基线；这是一次有授权的上游修改，不是自动反向同步。
-
-图片清单只证明文件字节，不证明内容正确；视觉检查不能代替事实裁定。上游交付中的 `confirmed`/`no_source` 先处理；用户明确接受的边界由核查员记录 `accepted_with_caveat`。
-
-交接完成于：页序、身份、正文/口播/制作/来源可核对；接收方能从真实路径恢复上游内容、来源、核查及制作位置，并能区分基线核查与编辑后画面的覆盖范围。共同记忆、来源索引和上游正式稿各保留一份。默认工作台不创建 legacy feedback 文件；只有恢复旧项目时才使用它们。
+当 `$planners-ppt-hell` 阶段发现文案逻辑、口径或关键数字有问题时：
+- **恢复原目录**：回到**同一 Bypage 正式稿**（`<Project>/.planners/by-page.md`），不得另起一份副本改；
+- 修改正文与来源后，调用**同一核查员续检**（按 `planners-fact-check` 规则传入原上下文与最新 `by-page.md`）更新 `fact-audit.json`；
+- 校验通过并经工作台或用户确认后，重新交给 `$planners-ppt-hell` 同步对应页。

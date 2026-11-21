@@ -1,102 +1,52 @@
 ---
 name: planners-bypage
-description: 将已确认的 Storyline 或多源资料展开为完整逐页文案，后台完成来源准备与独立事实核查，在文字工作台里与用户逐块修改，再交给 planners-ppt-hell 制作。适用于 Proposal 主线交接、直接资料写稿和 PPT 制作前的内容整理。
+description: 将已确认的 Storyline（.planners/storyline.md）或原始多源资料展开为适合编程 PPT 的完整逐页文案（.planners/by-page.md），后台补全来源审计副本并通过独立 planners-fact-check 核查，在实时文字工作台逐块打磨后直接交给 planners-ppt-hell 制作 SVG 与 PPTX。
 ---
 
 # Planners Bypage
 
 > 由阿祖不看 TVC 创建与维护。个人网站 [demyth.info](https://demyth.info)，联系邮箱 `Lawyif@163.com`。来源信息不默认写入客户交付物。
 
-准确放大用户的意图，写出用户能直接阅读、修改和审阅的完整逐页文案。后台主动完成回源、事实核查和素材检查；交给 PPT Hell 时，页面已经说清楚要表达什么、凭什么成立。
+## 目标（OKR）
 
-## 工作路线与分工
+做两件事且做到极致：
+1. **写出真正适合编程 PPT 的逐页文案（`.planners/by-page.md`）**：不是复述大纲，而是用 `slide-copy` 锤炼结构与金句、参考 `planners-method-wiki` 中方法页的 `## 页面表达结构` 排布页面信息，写清每页的 `正文 / 口播 / 制作`、视觉配图需求与末尾来源出处。
+2. **后台完备核查、零未解错交接**：自动补全深层审计副本（`audit_companion`），调用独立 `planners-fact-check` 核查员彻底查验数据、主体、时间、单位与引文后交付文字工作台；人工确认定稿后把 `.planners/by-page.md`（及 `.planners/assets/`）直接交给 `$planners-ppt-hell`。
 
-理解材料与意图 → 从 Storyline 交接并展开完整逐页稿 → 后台核查与修正 → 文字工作台里逐块修改 → 交给 PPT Hell。
+## 入口路由（复用 vs 新建）
 
-沿用已有成果，按实际问题往返。主线已经确认时直接展开；遇到会改变核心判断、目标或承诺的问题，带着具体依据返回讨论。工作台里的完整文案与真实素材是核心交付。
-
-| 能力 | 何时调用、给什么、如何使用结果 |
+| 入口场景 | 处理方式 |
 |---|---|
-| `planners-source-index` | 接手或新增资料时读取入口；沿用权威索引，登记原文定位、可读副本、覆盖与盲区。它保证能回源，不替代事实判断。 |
-| `planners-method-wiki` | 遇到不熟悉的专业概念、分析方法或论证关系时，带当前问题、材料、希望改善的地方及已采用方法调用；读所选方法全文，按适用条件应用。方法知识不是项目事实。 |
-| `slide-copy` | 写页前读取，以其页面标题、正文与图文论证标准检查文案；需要改善跨页叙事时再调用 `storytelling`。 |
-| `planners-fact-check` | 完整稿首次审阅前，以及稿件或事实依据变化后，在独立上下文核查当前成品；根据疑点修正、补证或请用户裁定具体边界。 |
-| `planners-review-core` | 完整图文审阅时用它的文档工作台：按块自动保存、历史与恢复、块级反馈、锁与待核对。交互规则由公共模组维护。 |
-| `planners-ppt-hell` | 当前稿、核查和资产一致时交制作快照；由它负责版式、裁剪、画面和 PPTX。 |
+| 承接 `planners-proposal` 已定稿主线 | **沿用同一** `<Project>/.planners/` 工作目录（含 `storyline.md`、`project-memory.md` 与 `source-index.json`），运行 `import-storyline-doc.mjs` 生成 `.planners/by-page.md` 骨架后展开全文，不得新建另一套目录割裂记忆 |
+| 从 `planners-ppt-hell` 或用户直接给零散资料进入 | 建立**新项目工作目录** `<Project>/.planners/`，登记 `source-index.json`（`source-index/2.1.0`）、`project-memory.md` 与 `by-page.md`，不要求前置 Proposal |
 
-## 1. 理解材料与用户意图
+## 工具
 
-读取已有目标、受众、用户决定、项目记忆与来源。Proposal 交接直接读取当前 `.planners/storyline.md`：每页一句「主张：」及其 2～3 个支撑要点，连同页末引用里的来源和「依据与边界」标题块里的限定、缺口。支撑要点是待充分展开的论证，不是几个只需改写的标题。
+`<B>` 为本 Skill 根目录，`<K>` 为 `planners-review-core` 根目录，`<D>` 为 `<Project>/.planners/by-page.md`。
 
-直接接收资料时，先读正文、数据与必要视觉内容，组织能回答用户问题的页面顺序。只追问会影响结果、且现有材料尚未回答的缺口。PPT Hell 调用时记录原制作目录和续接位置。
+| 阶段 | 命令 |
+|---|---|
+| 从 Storyline 导入 By-page 骨架 | `node "<B>/scripts/import-storyline-doc.mjs" --storyline "<Project>/.planners/storyline.md" --output "<D>"` |
+| 后台补全文档提取底账（PDF/Office） | `node "<B>/scripts/prepare-audit-sources.mjs" --source-index "<Project>/.planners/source-index.json"` |
+| 校验来源索引（`source-index/2.1.0`） | `node "<B>/scripts/validate-source-index.mjs" "<Project>/.planners/source-index.json"` |
+| 校验事实审计接缝 | `node "<B>/scripts/validate-fact-audit.mjs" --audit "<Project>/.planners/fact-audit.json" --copy "<D>"` |
+| 校验 By-page 文档结构与页末出处 | `node "<B>/scripts/validate-bypage-doc.mjs" "<D>" [--assets "<Project>/.planners/by-page.assets.json"]` |
+| 渲染与校验 Mermaid 示意 SVG | `node "<B>/scripts/render-diagrams.mjs"` / `node "<B>/scripts/validate-diagrams.mjs"`（传 `--manifest`、`--copy "<D>"`，可选 `--assets "<Project>/.planners/by-page.assets.json"`） |
+| DSH 侧栏：生成 surface 后调 `review_open` | `node "<K>/scripts/doc-surface.mjs" "<D>"` 与 `doc-command.mjs`（`tasks \| claim \| patch \| complete \| conflicts`） |
+| 本地独立宿主：启动文字工作台与收件箱 | `node "<K>/scripts/doc-workbench.mjs" "<D>" --open` 与 `doc-inbox.mjs` |
 
-接手或恢复项目时读 [内容交接](references/content-handoff.md)。沿用同一 `project-memory.md` 和权威 `source-index.json` 的原路径与来源 ID。新项目工作目录默认 `<Project>/.planners`，里面是 `storyline.md`、`by-page.md` 和同名图片清单 `by-page.assets.json`；核查记录 `fact-audit.json` 也在同一目录。正式文案只维护这一份 `.planners/by-page.md`，工作台编辑原地回写。
+## 剧本（Playbook）
 
-旧的页级逐页稿（`bypage-draft.md`，页级 frontmatter）与旧 `page-architecture.json` 只用于已有项目续接，不迁移、不新建；新项目按 `planners-doc/2` 重建。
+1. **接手与后台补底账**：接手 `.planners/` 后（或新建 `.planners/`），核对 `source-index.json`；若上游只写了轻量台账，后台运行 `prepare-audit-sources.mjs` 为重点 PDF/Office 文档提取 `audit_companion` 审计底账并更新至 `source-index/2.1.0`。
+2. **检索表达结构并写可编程 PPT 正文**：针对每类页面，查 `planners-method-wiki` 方法页的 `## 页面表达结构` 获取页面信息排布参考，并结合 `slide-copy`（高信息密度、结构清晰、短句/对比表/量化结论，避免大段散文）写出 [`contracts/by-page.md`](contracts/by-page.md) 规范的 `.planners/by-page.md`：
+   - **正文中不留任何核查角标**（核查结论留在 `.planners/fact-audit.json` 与对话中）。
+   - `### 正文` 必填且写清口径、单位、时间与限定；`### 口播` 与 `### 制作` 按需填写（需要示意图时可经 `render-diagrams.mjs` 生成 `.planners/assets/*.svg` 并写明 `source_id`）；每页末尾用 `>` 引用列出出处。
+   - 若上游采用简写引用或新引入图片，在 [`templates/content-brief.md`](templates/content-brief.md) 或 `project-memory.md` 中对好对应页码后再落稿。
+3. **独立事实核查门禁（交付前必过）**：调动独立的 `planners-fact-check`（代理规则**按该 Skill 的规则复用**；不自己核查自己的稿子），核查 `.planners/by-page.md` 对照 `source-index.json` 生成 `.planners/fact-audit.json`。有已确认错误（`confirmed`）或未覆盖（`no_source`）必须先修稿复核，并运行 `validate-fact-audit.mjs` 通过。
+4. **交付实时文字工作台审阅与返修**：先过 `validate-bypage-doc.mjs` 再启动工作台（DSH 用 `doc-surface.mjs` + `review_open`，本地用 `doc-workbench.mjs --open`）。接到批注任务时先看 `task.diff` 识别人的整页增删或拖拽重排，再按锚点加锁并局部 `patch`；正文或来源被改动后必须重新复核事实并更新 `fact-audit.json`。工作台用法见 [工作台操作](references/workbench.md)。
+5. **直接交接 `$planners-ppt-hell`**：用户确认 `.planners/by-page.md` 定稿且最新核查通过后，把 `.planners/by-page.md` 与同目录 `assets/`（及 `by-page.assets.json`、`fact-audit.json`、`source-index.json`）直接交给 `$planners-ppt-hell`。`planners-ppt-hell` 的 `init_svg_project.py --source` 会直接解析该 Markdown 生成制作工程。
 
-来源准备按 [核查调用](references/verification.md) 执行：补读相关原文，补齐二进制文档可读层，明确实际盲区。完成于受众、意图、已确认判断与材料能力足以约束写作；未知事项有具体位置与影响。
+## 详情参考
 
-## 2. 从 Storyline 交接并写完整逐页稿
-
-Proposal 的 `storyline.md` 是上游判断，不是待重写的提纲。用文档交接把页、主张与来源接过来，再展开内容：
-
-```bash
-node scripts/import-storyline-doc.mjs --storyline "<Project>/.planners/storyline.md" --output "<Project>/.planners/by-page.md"
-```
-
-回执里的 `mapping` 逐页列出章节、序号、标题与主张；交接当场核对页序与主张，不要凭记忆重排。已有逐页稿不会被覆盖。页数变化（拆页、合并、删页）是作者的显式决定，规则写在 [By-page 契约](contracts/by-page.md) 第 5 节；拆页与合并要在项目记忆记下对应关系。
-
-按 [文案模板](templates/by-page.md) 写 `.planners/by-page.md`：`#` 是章节、`##` 是页，页内固定三段 `### 正文 / 口播 / 制作`，页末连续的引用就是出处：
-
-- `正文`：观众实际看到的完整文案，包含必要数据、表格、证据和真实图片引用；明确口径、单位与限定。不能为空。
-- `口播`：需要额外讲述、解释或衔接时填写，否则留空。
-- `制作`：有必要时说明内容层级、图文关系或制作意图，否则留空；版式设计交给 PPT Hell。
-- 页末出处：来源 ID 与具体定位，逐条写成 `> …` 的引用，位置就是语义；能从本页回到原文。来源随文档交付，不能为空。写到页中的引用不算出处，写成 `### Sources` 标题块会被拒。
-
-文档名只写在文档头的 `project` 里，正文不再有标题行。页身份是「章节 + 顺序 + 标题」，页号不写进正文。正文不放核查角标：核查结论走 `fact-audit.json` 与对话。
-
-图片采用前读 [图片处理](references/image-lifecycle.md)，保留原件、登记资产并实际看图。正文只写 `![说明](相对路径)`，文件必须存在并登记进同名 `doc-assets/1` 清单；工作台打开时会按正文重建清单。尺寸和 Hash 不能证明图片内容正确；无法判断时保留待确认状态。
-
-关系需要图示才能清楚表达时，读 [示意图流程](references/diagram-lifecycle.md)，生成可见真图，登记文字源与资产，检查实际画面并纳入事实核查。需要精确几何或专门视觉设计时，在制作说明写清意图交给 PPT Hell。没有图示需要时跳过图示工具。
-
-写完按顺序通读标题与正文：标题链能推进判断，支撑充分且不夸大材料，图片与文案相互印证。运行：
-
-```bash
-node scripts/validate-bypage-doc.mjs "<Project>/.planners/by-page.md"
-```
-
-它先跑公共 `validate-doc.mjs` 的结构校验，再按 Bypage 规则检查三段齐全、正文非空、页末出处非空与图片登记。完成于所有页面都有可阅读、可继续制作的内容；格式通过不能替代内容判断。
-
-## 3. 后台核查与修正
-
-读取 `planners-fact-check` 入口，向独立核查员提供四项绝对路径：该 Skill、当前 `.planners/by-page.md`、权威来源索引、核查结果输出位置。有示意图时同时提供图示清单和文字源。不给作者推理或预设结论，等待实际核查结果落盘。
-
-按该 Skill 的规则复用仍独立且可调用的核查员，把 ID、已核版本和实际覆盖记入项目记忆。核查数字、引用、主体、时间、单位、分母与限定；修改后回读受影响内容，保留其他有效工作。作者不能自行替换 Hash 来宣称已经续检。
-
-读取疑点并处理：待裁定项完成裁定，确认错误先修正，无来源项补证或撤除。确需保留的事实边界请用户逐项明确决定，由核查员记录真实决定。一般页面认可不能替代事实例外裁定。
-
-执行 [核查调用](references/verification.md) 的当前稿校验。完成于错误已修正、疑点有有效处理、实际盲区明确，核查绑定当前文案与来源。未读部分不因疑点清单为空而成为已验证事实。
-
-## 4. 交付工作台，共同修改
-
-按 [工作台操作](references/workbench.md) 生成并打开完整图文 Workbench；使用前读 `planners-review-core/contracts/planners-doc-task.md`，它是块级反馈、锁与待核对的当前规则。
-
-```bash
-node "<planners-review-core>/scripts/doc-workbench.mjs" "<Project>/.planners/by-page.md" --open
-```
-
-向用户说明：直接点进任意一段话改字，自动保存，没有「编辑模式」；拖动块尾六点句柄移块、拖页标题移页，也可 `Alt+↑↓`；历史版本可查看与恢复；选中文字或点块尾批注，提交的是**块级反馈**，模型只改这些块，其他块照常编辑；同一块被双方改过时只有那一块标「待核对」。工作台第一次打开会补写缺失锚点、重建图片清单，这是正常落盘，不是内容改动。
-
-收到反馈后，读取当前 `.planners/by-page.md` 与工作台任务（有侧栏插件时即时唤醒；没有插件时用 `doc-inbox.mjs list` 取本地收件箱）。按任务里的块身份与内容指纹处理指定块，保留用户已有修改；不要整份重写。文字、素材或依据变化后由原核查员续检；核查及图片清单更新后再让用户继续编辑。版本或来源冲突时保留草稿，重新读取当前状态再处理。
-
-完成于用户反馈已处理、当前文案可读可改、核查与素材状态跟上修改。无需额外逐页批准按钮；存在未处理反馈时继续共同修改。
-
-## 5. 交给 PPT Hell
-
-按 [工作台操作](references/workbench.md) 的交付一节核对当前稿、核查和图片清单。制作入口由 `$planners-ppt-hell` 提供；版式、裁剪、画面和 PPTX 由它负责，Bypage 不再写版式说明之外的东西。
-
-当前仓库的制作快照导出（`build-reviewed-copy.mjs`）仍读取旧页级逐页稿；把 `.planners/by-page.md` 直接接进 PPT Hell 导入器是独立的一张票。在那之前，向用户说明实际可用的交付方式，不假装已经导出。
-
-在同一项目记忆记录当前稿、核查、资产与交付位置的绝对路径。后续上游改稿回到这份正式稿；画面阶段的事实变更按实际成品另行核查。
-
-完成标准：用户意图得到充分而准确的展开，用户能在工作台里审阅与修改，事实疑点得到处理，当前稿、核查和资产一致，制作端能按真实路径续接。维护接口时读 [架构边界](references/architecture.md)；历史记录不恢复已停用的流程。
+- [工作台操作](references/workbench.md) · [交接与返修](references/content-handoff.md) · [事实核查接缝](references/verification.md)
+- [图片与图资产](references/image-lifecycle.md) · [示意图渲染](references/diagram-lifecycle.md) · [来源阅读](references/source-reading.md) · [职责与接口](references/architecture.md)
