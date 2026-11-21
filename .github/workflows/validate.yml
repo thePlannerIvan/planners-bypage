@@ -50,7 +50,7 @@ jobs:
           path: 02-skills-library/02-content-assembly/planners-method-wiki
       - uses: actions/checkout@v4
         with:
-          repository: thePlannerIvan/Planners-Proposal-System
+          repository: thePlannerIvan/planners-proposal
           path: 02-skills-library/02-content-assembly/planners-proposal
       - uses: actions/setup-node@v4
         with:
